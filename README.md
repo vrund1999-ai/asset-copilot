@@ -36,7 +36,7 @@ pytest
 
 - [`docs/ROADMAP.md`](docs/ROADMAP.md): milestones with acceptance criteria
 - [`docs/EVALS.md`](docs/EVALS.md): evaluation plan, categories, and metrics
-- [`docs/JOB_CONTEXT.md`](docs/JOB_CONTEXT.md): the skills this project is meant to demonstrate
+- [`docs/SKILLS_DEMONSTRATED.md`](docs/SKILLS_DEMONSTRATED.md): the skills this project is meant to demonstrate
 - [`CLAUDE.md`](CLAUDE.md): conventions and rules for AI-assisted development
 
 ## Status

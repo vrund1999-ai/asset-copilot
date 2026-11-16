@@ -4,7 +4,7 @@ Evaluated AI agent for commercial real estate (CRE) portfolio analysis. Answers 
 structured data (Postgres) and unstructured documents (leases, loan docs) with citations.
 It is a portfolio/resume project demonstrating production-quality applied AI: reliability,
 governance, and measured accuracy. Read `docs/ROADMAP.md` for what to build and
-`docs/JOB_CONTEXT.md` for why.
+`docs/SKILLS_DEMONSTRATED.md` for why.
 
 ## Stack
 
@@ -42,7 +42,7 @@ Schema changes: edit `db/schema.sql`, then `docker compose down -v && docker com
 
 - Synthetic or public data only. Never add confidential or proprietary data.
 - Do not name any specific employer or firm in the repo name, README, code, docs, or data.
-  The target role is discussed only in `docs/JOB_CONTEXT.md`, in generic terms.
+  Do not reference any specific job posting, role, or hiring process; keep all docs generic.
 
 ## Workflow rules
 
