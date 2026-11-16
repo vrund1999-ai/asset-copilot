@@ -1,0 +1,2 @@
+{"id": "q001", "question": "How many properties are in the portfolio?", "gold_sql": "SELECT COUNT(*) AS n FROM properties", "type": "sql"}
+{"id": "q002", "question": "What is total NOI across the portfolio for the most recent month?", "gold_sql": "SELECT SUM(noi) AS total_noi FROM operating_statements WHERE month = (SELECT MAX(month) FROM operating_statements)", "type": "sql"}
