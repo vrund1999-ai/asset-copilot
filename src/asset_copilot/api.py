@@ -1,24 +1,11 @@
+import anthropic
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
 from .governance import UnsafeQueryError
+from .schemas import AskRequest, AskResponse
 
 app = FastAPI(title="asset-copilot", version="0.1.0")
-
-
-class AskRequest(BaseModel):
-    question: str
-    session_id: str | None = None
-
-
-class Citation(BaseModel):
-    kind: str  # "sql" | "document"
-    reference: str  # the query text, or "doc title p.N"
-
-
-class AskResponse(BaseModel):
-    answer: str
-    citations: list[Citation] = []
 
 
 class FeedbackRequest(BaseModel):
@@ -36,8 +23,24 @@ def health() -> dict:
 
 @app.post("/ask", response_model=AskResponse)
 def ask(req: AskRequest) -> AskResponse:
-    # TODO(week 2): wire up the agent loop in agent.py
-    raise HTTPException(status_code=501, detail="Agent not implemented yet")
+    from .agent import AgentConfigError, run_agent
+
+    question = req.question.strip()
+    if not question:
+        raise HTTPException(status_code=422, detail="question must not be empty")
+    if len(question) > 2000:
+        raise HTTPException(status_code=422, detail="question must be at most 2000 characters")
+    try:
+        return run_agent(question, req.session_id)
+    except AgentConfigError as e:
+        raise HTTPException(status_code=503, detail=str(e)) from e
+    except anthropic.RateLimitError as e:
+        raise HTTPException(status_code=429, detail="The model API is rate limiting requests; "
+                            "try again shortly.") from e
+    except anthropic.AuthenticationError as e:
+        raise HTTPException(status_code=503, detail="The model API rejected the configured key.") from e
+    except anthropic.APIError as e:
+        raise HTTPException(status_code=502, detail=f"Model API error: {type(e).__name__}") from e
 
 
 @app.post("/query")

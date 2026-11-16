@@ -10,6 +10,12 @@ class Settings(BaseSettings):
     anthropic_model: str = "claude-sonnet-5-5"
     # Fixed "today" for the synthetic data and the agent, so gold answers are reproducible.
     as_of_date: date = date(2026, 6, 30)
+    # Agent loop limits
+    max_iterations: int = 8
+    max_sql_errors: int = 5
+    max_tokens: int = 8192
+    max_result_rows_to_model: int = 50
+    anthropic_timeout: float = 60.0
     database_url_admin: str = (
         "postgresql+psycopg://postgres:postgres@localhost:5432/asset_copilot"
     )

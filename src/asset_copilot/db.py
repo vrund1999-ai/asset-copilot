@@ -34,7 +34,14 @@ def _db_message(e: SQLAlchemyError) -> str:
 
 
 def run_readonly_query(sql: str, session_id: str | None = None) -> list[dict]:
-    """Validate, execute on the read-only role, and audit-log the outcome.
+    """Validate, execute on the read-only role, and audit-log the outcome (rows only)."""
+    return run_readonly_query_full(sql, session_id)[1]
+
+
+def run_readonly_query_full(sql: str, session_id: str | None = None) -> tuple[str, list[dict]]:
+    """Like run_readonly_query but also returns the SQL that was actually executed.
+
+    The agent cites the executed SQL (with the guard's LIMIT applied), not the model's draft.
 
     Every attempt is audited: success (`sql_query`), guard rejection (`sql_blocked`),
     and database failure (`sql_error`). At most MAX_ROWS rows are fetched.
@@ -55,7 +62,7 @@ def run_readonly_query(sql: str, session_id: str | None = None) -> list[dict]:
         raise QueryExecutionError(msg) from e
 
     audit("sql_query", {"sql": safe_sql, "row_count": len(rows)}, session_id)
-    return rows
+    return safe_sql, rows
 
 
 def audit(action: str, detail: dict, session_id: str | None = None) -> None:
