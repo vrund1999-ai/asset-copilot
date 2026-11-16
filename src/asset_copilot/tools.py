@@ -110,7 +110,9 @@ def jsonable(v: Any) -> Any:
 
 
 def format_decimal(d: Decimal) -> str:
-    """Plain notation without trailing zeros or exponents (42000.000 -> '42000')."""
+    """Plain notation without trailing zeros or exponents (42000.000 -> '42000'), max 10 decimals."""
+    if d.as_tuple().exponent < -10:  # type: ignore[operator]
+        d = round(d, 10)
     return format(d.normalize(), "f")
 
 

@@ -22,7 +22,7 @@ from .config import settings
 from .grounding import find_ungrounded
 from .prompts import build_system_prompt
 from .schemas import AskResponse, Citation
-from .tools import TOOLS, RunContext, run_calculate, run_sql
+from .tools import TOOLS, RunContext, format_decimal, run_calculate, run_sql
 
 CANNOT_DETERMINE = "I can't determine that from the data."
 SUBMIT_NUDGE = (
@@ -115,7 +115,7 @@ def _citations(final: _Final, ctx: RunContext) -> list[Citation]:
     for c in final.calc_ids:
         rec = ctx.calcs[c]
         cites.append(Citation(kind="calculation", label=c,
-                              reference=f"{c}: {rec.expression} = {rec.result.normalize():f}"))
+                              reference=f"{c}: {rec.expression} = {format_decimal(rec.result)}"))
     return cites
 
 

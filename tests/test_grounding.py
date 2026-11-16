@@ -69,3 +69,7 @@ def test_trailing_punctuation_not_part_of_number():
 def test_extract_numbers_precision_sets_tolerance():
     (_, value, tol, is_pct), = extract_numbers("$1.2M")
     assert value == Decimal(1200000) and tol > Decimal(50000) and not is_pct
+
+
+def test_percent_word_is_a_percent():
+    assert find_ungrounded("Rollover is 11.3 percent.", "q", [q([{"pct": "0.1125"}])], []) == []

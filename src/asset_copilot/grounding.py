@@ -26,7 +26,7 @@ _EXEMPT = [
 ]
 _NUM = re.compile(
     r"(?P<num>\d[\d,]*(?:\.\d+)?)"
-    r"(?P<suf>\s?%|\s?(?:thousand|million|billion)\b|[KkMmBb]\b)?"
+    r"(?P<suf>\s?%|\s?(?:percent|thousand|million|billion)\b|[KkMmBb]\b)?"
 )
 _MULT = {"k": 10**3, "thousand": 10**3, "m": 10**6, "million": 10**6,
          "b": 10**9, "billion": 10**9}
@@ -50,7 +50,7 @@ def extract_numbers(text: str) -> list[tuple[str, Decimal, Decimal, bool]]:
         except InvalidOperation:
             continue
         suf = (m.group("suf") or "").strip().lower()
-        is_pct = suf == "%"
+        is_pct = suf in ("%", "percent")
         mult = Decimal(_MULT.get(suf, 1))
         decimals = len(digits.split(".")[1]) if "." in digits else 0
         unit = Decimal(1).scaleb(-decimals) * mult  # size of the last written digit

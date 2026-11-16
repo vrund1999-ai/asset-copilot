@@ -4,7 +4,7 @@ from decimal import Decimal
 from asset_copilot.config import settings
 from asset_copilot.db import QueryExecutionError
 from asset_copilot.governance import MAX_ROWS
-from asset_copilot.tools import RunContext, jsonable, run_calculate, run_sql
+from asset_copilot.tools import RunContext, format_decimal, jsonable, run_calculate, run_sql
 
 
 def test_run_sql_success_assigns_ids_and_stores_full_rows(fake_db):
@@ -72,3 +72,9 @@ def test_calculate_errors_do_not_consume_ids():
     for expr in ("1/0", "__import__('os')", None):
         assert run_calculate(ctx, {"expression": expr}).is_error
     assert not ctx.calcs
+
+
+def test_format_decimal_caps_precision_and_strips_zeros():
+    assert format_decimal(Decimal("11.25176382119782623500213663")) == "11.2517638212"
+    assert format_decimal(Decimal("42000.000")) == "42000"
+    assert format_decimal(Decimal("0.5")) == "0.5"

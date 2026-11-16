@@ -55,7 +55,9 @@ Implement `agent.py` (Claude tool use loop) and wire it to `POST /ask`. Delivere
   `max_iterations` exceeded returns "I couldn't complete this within N steps" with the trace in `audit_log`.
   Handle `stop_reason == "max_tokens"` explicitly.
 - SDK errors map to 429 / 502 / 503 with clear messages; a missing API key returns 503 before any call.
-- Temperature 0; schema prompt in a `cache_control` block; token usage accumulated per request.
+- No `temperature`/forced `tool_choice` (`claude-sonnet-5-5` rejects both with a 400); `tool_choice` stays `auto`.
+  Schema prompt in a `cache_control` block; token usage accumulated per request. The `refusal` stop reason
+  is handled explicitly. Server-side refusal fallbacks are not enabled yet (needs a live key to verify).
 - Tool results are untrusted data, not instructions (tenant names and later document text may contain injections).
 
 ### System prompt
@@ -109,10 +111,10 @@ truncation and Decimal serialization. One `@pytest.mark.integration` test (real 
 
 Done when:
 - [ ] `/ask` answers the SQL questions in `evals/questions.jsonl` end to end via the Streamlit UI
-- [ ] Every `answered` response includes at least one citation; uncitable questions return "I can't determine that from the data"
-- [ ] Unsafe model-generated SQL is blocked and the error is fed back (covered by a test with a mocked model)
-- [ ] Each tool call and final answer is in `audit_log` with the session id
-- [ ] Unit tests with a mocked Anthropic client (no network in CI)
+- [x] Every `answered` response includes at least one citation; uncitable questions return "I can't determine that from the data"
+- [x] Unsafe model-generated SQL is blocked and the error is fed back (covered by a test with a mocked model)
+- [x] Each tool call and final answer is in `audit_log` with the session id
+- [x] Unit tests with a mocked Anthropic client (no network in CI)
 - [x] Generated data and gold answers are reproducible via a fixed `--as-of` date (PR A)
 
 ## M2. Documents: generation, ingestion, retrieval (week 2-3)
