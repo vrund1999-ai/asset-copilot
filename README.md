@@ -32,6 +32,13 @@ streamlit run app/streamlit_app.py
 pytest
 ```
 
+## Docs
+
+- [`docs/ROADMAP.md`](docs/ROADMAP.md): milestones with acceptance criteria
+- [`docs/EVALS.md`](docs/EVALS.md): evaluation plan, categories, and metrics
+- [`docs/JOB_CONTEXT.md`](docs/JOB_CONTEXT.md): the skills this project is meant to demonstrate
+- [`CLAUDE.md`](CLAUDE.md): conventions and rules for AI-assisted development
+
 ## Status
 
 - [x] Schema, synthetic data generator, SQL governance layer, API + UI skeleton
