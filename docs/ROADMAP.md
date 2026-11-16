@@ -110,7 +110,7 @@ audit rows in order; `calculate` valid cases, injection attempts, huge exponent,
 truncation and Decimal serialization. One `@pytest.mark.integration` test (real DB and model) skipped in CI.
 
 Done when:
-- [ ] `/ask` answers the SQL questions in `evals/questions.jsonl` end to end via the Streamlit UI
+- [x] `/ask` answers the SQL questions in `evals/questions.jsonl` end to end via the Streamlit UI
 - [x] Every `answered` response includes at least one citation; uncitable questions return "I can't determine that from the data"
 - [x] Unsafe model-generated SQL is blocked and the error is fed back (covered by a test with a mocked model)
 - [x] Each tool call and final answer is in `audit_log` with the session id

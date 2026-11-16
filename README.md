@@ -42,7 +42,7 @@ pytest
 ## Status
 
 - [x] Schema, synthetic data generator, SQL governance layer, API + UI skeleton
-- [ ] Agent loop with SQL tool and citations
+- [x] Agent loop with SQL tool and citations
 - [ ] Document ingestion + retrieval
 - [ ] Variance report workflow
 - [ ] Eval harness with measured accuracy
