@@ -48,7 +48,9 @@ class SentenceTransformerEmbedder:
                 'sentence-transformers is not installed. Run: pip install -e ".[embeddings]"'
             ) from e
         self._model = SentenceTransformer(model_name or settings.embedding_model)
-        self.dim = self._model.get_sentence_embedding_dimension()
+        getter = getattr(self._model, "get_embedding_dimension",
+                         self._model.get_sentence_embedding_dimension)
+        self.dim = getter()
         if self.dim != settings.embedding_dim:
             raise RuntimeError(
                 f"Model dimension {self.dim} != schema vector({settings.embedding_dim}). "
