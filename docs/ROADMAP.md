@@ -9,23 +9,111 @@ box when met. Prefer finishing one thing well over breadth.
 
 ## M1. SQL agent with citations (week 1-2)
 
-Implement `agent.py` (Claude tool use loop) and wire it to `POST /ask`.
+Implement `agent.py` (Claude tool use loop) and wire it to `POST /ask`. Delivered in two PRs:
+**PR A (foundations)** and **PR B (agent, API, UI, evals)**.
 
-Tools:
-- `run_sql(sql)`: calls `db.run_readonly_query`; returns rows (capped) or the guard's error so the model can retry.
-- `calculate(expression)`: safe arithmetic evaluator (no `eval`); used for any derived number.
-- Tool-use loop with a max-iterations cap (e.g. 8) and a clear failure message when exceeded.
-- System prompt includes a compact schema description (tables, columns, units, "month = first day of month").
+### Gaps in the scaffold that M1 closes
 
-Response contract (`AskResponse`): `answer` text plus `citations` of `{kind: "sql"|"document", reference}`.
-For SQL, `reference` is the executed query. The answer must not state a number that did not come from a tool result.
+1. Blocked queries are not audited (`db.run_readonly_query` logs only on success).
+2. DB errors (e.g. unknown column) are not `UnsafeQueryError`; the loop must catch and feed them back.
+3. The row cap is not enforced on fetch, and `document_chunks.embedding` could flood the context.
+4. The generator uses `date.today()`, so "next 18 months" and "latest month" drift daily and gold
+   answers are not reproducible. Fix with an `--as-of` date, also injected into the agent prompt.
+5. Many leases are already expired (multifamily leases are 1 year). "Active" means `end_date >= as_of`;
+   the prompt must say so.
+6. The latest month in `operating_statements` is the current, unclosed month; document it in the prompt.
+7. `evals/questions.jsonl` has 2 rows using the old `type` field; migrate to `category` and grow to ~25.
+
+### Module layout
+
+| File | Purpose |
+|---|---|
+| `agent.py` | Loop, tool dispatch, citation assembly, grounding check |
+| `tools.py` | Tool schemas, `run_sql` and `calculate` handlers |
+| `calc.py` | Safe `ast`-based arithmetic evaluator |
+| `prompts.py` | System prompt and schema description |
+| `config.py` | `max_iterations` (8), `max_tokens`, `max_result_rows_to_model` (50), `as_of_date` |
+| `api.py` | Wire `/ask` |
+| `db.py` | Audit blocked/failed queries, enforce row cap |
+
+### Tools
+
+- `run_sql(sql, purpose)`: calls `db.run_readonly_query`. Assigns a per-request query id (`Q1`, `Q2`, ...).
+  Returns `{query_id, columns, rows (first 50), row_count, truncated}`; the full result is kept server-side.
+  Guard or DB errors return `{error, hint}` as an error tool result and count against a retry budget.
+  Decimals and dates are serialized as strings.
+- `calculate(expression, label)`: `ast` parser allowing only numeric constants, `+ - * / // % **`,
+  parentheses, unary minus, and `round`/`abs`/`min`/`max`. No names or attributes, capped expression
+  length and exponent, `Decimal` arithmetic, divide-by-zero returned as an error. Results get ids (`C1`, ...).
+- `submit_answer(status, answer, query_ids, calc_ids)`: terminates the loop. `status` is
+  `answered` or `cannot_determine`.
+
+### Loop behavior
+
+- Execute all `tool_use` blocks in a turn and return every `tool_result` in one user message.
+- Stop on `submit_answer`. A plain-text end turn gets one nudge to call it; then counts as failure.
+  `max_iterations` exceeded returns "I couldn't complete this within N steps" with the trace in `audit_log`.
+  Handle `stop_reason == "max_tokens"` explicitly.
+- SDK errors map to 429 / 502 / 503 with clear messages; a missing API key returns 503 before any call.
+- Temperature 0; schema prompt in a `cache_control` block; token usage accumulated per request.
+- Tool results are untrusted data, not instructions (tenant names and later document text may contain injections).
+
+### System prompt
+
+Role and hard rules (never compute, never state a number not from a tool, always cite, refuse when the data
+cannot answer); compact schema with semantics (`month` = first of month, `noi` generated, `base_rent_psf`
+annual, `annual_escalation` a fraction, `renewal_options` a count, active = `end_date >= as_of`,
+occupancy = active leased sq ft / `properties.sq_ft`); the `as_of` date; 2-3 few-shot examples
+(aggregate, rollover, refusal); refusal rules (forecasts, out-of-schema, document-dependent until M2,
+questions about the agent's own logs).
+
+### Citations and grounding
+
+- Citations are built by code. `submit_answer.query_ids` is resolved against queries that actually ran;
+  the response carries the real SQL text. Unknown ids are rejected and the model must retry.
+- Number check: every number in the answer must appear in a cited query or calc result (allowing for
+  `$1.2M`, `12.5%`, separators, and rounding tolerance; dates and list indexes exempt). On a miss, one
+  corrective turn; if it still fails, return with `grounded: false` and log it. Evals count ungrounded as failures.
+- Refusal (`cannot_determine`) returns "I can't determine that from the data" plus what is missing and
+  may carry no citations. The rule is: `answered` implies at least one citation.
+
+### Response contract and audit
+
+- `AskResponse` (additive): `answer`, `citations` (`{kind, reference, label?}`), `session_id` (generated if
+  absent), `status`, `grounded`, `steps`, `usage`.
+- `audit_log` rows, one per event, all with the session id: `ask_received`, `model_call`, `tool_call`,
+  `sql_blocked`, `grounding_check`, `answer_final`, `agent_error`.
+- Streamlit: citations in an expander with SQL in `st.code`; distinct states for refusal, ungrounded
+  warning, and API error.
+
+### Evals in M1
+
+Migrate `type` to `category`; add ~25 questions (12 `sql_aggregate`, 6 `sql_filter_rank`, 4 `lease_rollover`,
+3 `refusal`, plus 3 adversarial prompts). `run_evals.py` gets basic numeric/set comparison against gold SQL
+and a refusal check. Rich scoring stays in M4.
+
+### Build order
+
+PR A: (1) `calc.py` + tests, (2) `db.py` row cap and blocked/failed audit + governance tests,
+(3) `--as-of` in the generator.
+PR B: (4) `tools.py` + `prompts.py`, (5) `agent.py` loop with a fake client + tests, (6) grounding check,
+(7) wire `/ask` + API tests, (8) Streamlit UI, (9) questions + eval scorer, (10) live run, tick README/ROADMAP.
+
+### Tests (mocked client, no network, no DB)
+
+Scripted `FakeAnthropic` with `run_readonly_query` and `audit` monkeypatched. Cover: happy path with citations
+resolving to real SQL; unsafe SQL blocked and recovered; DB error retried; iteration cap; hallucinated number
+-> correction -> `grounded: false`; fabricated `query_id` rejected; multiple tool calls per turn; refusal;
+audit rows in order; `calculate` valid cases, injection attempts, huge exponent, divide by zero; result
+truncation and Decimal serialization. One `@pytest.mark.integration` test (real DB and model) skipped in CI.
 
 Done when:
 - [ ] `/ask` answers the SQL questions in `evals/questions.jsonl` end to end via the Streamlit UI
-- [ ] Every response includes at least one citation; uncitable questions return "I can't determine that from the data"
+- [ ] Every `answered` response includes at least one citation; uncitable questions return "I can't determine that from the data"
 - [ ] Unsafe model-generated SQL is blocked and the error is fed back (covered by a test with a mocked model)
 - [ ] Each tool call and final answer is in `audit_log` with the session id
 - [ ] Unit tests with a mocked Anthropic client (no network in CI)
+- [x] Generated data and gold answers are reproducible via a fixed `--as-of` date (PR A)
 
 ## M2. Documents: generation, ingestion, retrieval (week 2-3)
 

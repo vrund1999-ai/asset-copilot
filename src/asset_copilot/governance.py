@@ -48,6 +48,20 @@ def validate_sql(sql: str) -> str:
         if name not in ALLOWED_TABLES and name not in cte_names:
             raise UnsafeQueryError(f"Table '{table.name}' is not allowed.")
 
+    # Embeddings are 1024 floats per row: useless to the model and they flood the context.
+    if any(c.name.lower() == "embedding" for c in tree.find_all(exp.Column)):
+        raise UnsafeQueryError("The 'embedding' column is not queryable.")
+    touches_chunks = any(t.name.lower() == "document_chunks" for t in tree.find_all(exp.Table))
+    if touches_chunks:
+        for select in tree.find_all(exp.Select):
+            if any(
+                isinstance(e, exp.Star) or (isinstance(e, exp.Column) and isinstance(e.this, exp.Star))
+                for e in select.expressions
+            ):
+                raise UnsafeQueryError(
+                    "SELECT * on document_chunks is not allowed; list the columns you need."
+                )
+
     if tree.args.get("limit") is None and isinstance(tree, exp.Select):
         tree = tree.limit(MAX_ROWS)
     return tree.sql(dialect="postgres")

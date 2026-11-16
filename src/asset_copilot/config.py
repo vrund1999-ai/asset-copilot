@@ -1,3 +1,5 @@
+from datetime import date
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -6,6 +8,8 @@ class Settings(BaseSettings):
 
     anthropic_api_key: str = ""
     anthropic_model: str = "claude-sonnet-5-5"
+    # Fixed "today" for the synthetic data and the agent, so gold answers are reproducible.
+    as_of_date: date = date(2026, 6, 30)
     database_url_admin: str = (
         "postgresql+psycopg://postgres:postgres@localhost:5432/asset_copilot"
     )

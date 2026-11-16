@@ -43,12 +43,14 @@ def ask(req: AskRequest) -> AskResponse:
 @app.post("/query")
 def query(sql: str, session_id: str | None = None) -> dict:
     """Run a guarded read-only query directly (useful for testing the governance layer)."""
-    from .db import run_readonly_query
+    from .db import QueryExecutionError, run_readonly_query
 
     try:
         return {"rows": run_readonly_query(sql, session_id)}
     except UnsafeQueryError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
+    except QueryExecutionError as e:
+        raise HTTPException(status_code=400, detail=f"Query failed: {e}") from e
 
 
 @app.post("/feedback")

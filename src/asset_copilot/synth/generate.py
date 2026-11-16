@@ -1,6 +1,9 @@
 """Synthetic portfolio generator. Fully synthetic: no confidential or real property data.
 
-Usage:  python -m asset_copilot.synth.generate --properties 60 --seed 42
+Usage:  python -m asset_copilot.synth.generate --properties 60 --seed 42 [--as-of 2026-06-30]
+
+All dates are relative to `as_of` (default: settings.as_of_date), never the wall clock, so the same
+seed and as-of date always produce identical data.
 """
 
 import argparse
@@ -10,6 +13,7 @@ from datetime import date, timedelta
 from faker import Faker
 from sqlalchemy import text
 
+from ..config import settings
 from ..db import admin_engine
 
 ASSET_TYPES = {
@@ -24,11 +28,17 @@ MARKETS = [("Dallas", "TX"), ("Phoenix", "AZ"), ("Atlanta", "GA"), ("Chicago", "
 INDUSTRIES = ["Logistics", "Retail", "Technology", "Healthcare", "Finance", "Manufacturing"]
 
 
-def generate(n_properties: int, seed: int) -> None:
+def month_start(as_of: date, months_back: int) -> date:
+    """First day of the month `months_back` months before as_of's month."""
+    idx = as_of.year * 12 + (as_of.month - 1) - months_back
+    return date(idx // 12, idx % 12 + 1, 1)
+
+
+def generate(n_properties: int, seed: int, as_of: date | None = None) -> None:
     rnd = random.Random(seed)
     fake = Faker()
     Faker.seed(seed)
-    today = date.today()
+    today = as_of or settings.as_of_date
     engine = admin_engine()
 
     with engine.begin() as conn:
@@ -81,7 +91,7 @@ def generate(n_properties: int, seed: int) -> None:
             # 24 months of actuals + budget
             monthly_rev = annual_rent / 12
             for m in range(24):
-                month = (today.replace(day=1) - timedelta(days=30 * m)).replace(day=1)
+                month = month_start(today, m)
                 b_rev = monthly_rev * rnd.uniform(0.98, 1.02)
                 b_opex = b_rev * opex_ratio
                 a_rev = b_rev * rnd.uniform(0.93, 1.05)
@@ -102,12 +112,14 @@ def generate(n_properties: int, seed: int) -> None:
                  "r": round(rnd.uniform(0.045, 0.085), 4),
                  "m": today + timedelta(days=rnd.randint(180, 365 * 7))},
             )
-    print(f"Generated {n_properties} properties (seed={seed}).")
+    print(f"Generated {n_properties} properties (seed={seed}, as_of={today}).")
 
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--properties", type=int, default=60)
     ap.add_argument("--seed", type=int, default=42)
+    ap.add_argument("--as-of", type=date.fromisoformat, default=None,
+                    help="Anchor date (YYYY-MM-DD); default AS_OF_DATE / 2026-06-30")
     args = ap.parse_args()
-    generate(args.properties, args.seed)
+    generate(args.properties, args.seed, args.as_of)
