@@ -50,5 +50,41 @@ Schema changes: edit `db/schema.sql`, then `docker compose down -v && docker com
   with `gh pr create`. Do not merge; the owner reviews and merges.
 - No AI-attribution lines (no "Co-Authored-By", no "Generated with ...") in commits, PR titles,
   PR bodies, issues, or code comments.
+- Pull request descriptions must follow `.github/pull_request_template.md` and be written for a
+  reviewer who has not seen the conversation. See "Pull request standards" below.
 - Add or update tests with each change. Governance changes need tests for both allowed and blocked queries.
 - When a roadmap item is finished, tick it in `README.md` Status and `docs/ROADMAP.md`.
+
+## Pull request standards
+
+Every PR needs a description a reviewer can act on without reading the chat history.
+
+**Description must include**
+- **Summary**: what changed and why, in a few sentences. Link the roadmap milestone (e.g. "M1").
+- **Changes**: bullet list of the notable files/behaviors changed. Call out schema changes,
+  new env vars, new dependencies, and anything that needs `docker compose down -v` or a data regen.
+- **Design notes / tradeoffs**: decisions a reviewer might question, and alternatives rejected.
+- **Testing evidence** (below). "Tests pass" alone is not evidence.
+- **Risks and follow-ups**: known gaps, limitations, and what is deliberately left for later.
+
+**Testing evidence, by change type**
+- **Backend / API / agent**: show the actual calls and results. Include the request (curl or
+  httpx), the response body, and the relevant log or `audit_log` rows. For agent changes, show
+  one or two representative question -> answer -> citation traces, and the eval run
+  (per-category accuracy, before/after if the change affects accuracy).
+- **Database / schema / data generator**: show the migration or reload command, `\dt` or a
+  verifying query, and row counts or a sample query result.
+- **UI (Streamlit)**: include screenshots of the changed states (happy path and at least one
+  error or empty state). Save screenshots locally and tell the user which files to attach to the
+  PR, because the `gh` CLI cannot upload images. Screenshots meant to stay in the repo
+  (README hero images, demo GIFs) go in `docs/screenshots/` and are linked by relative path.
+- **Governance / security**: show allowed and blocked cases, e.g. the blocked query and the error returned.
+- **Docs-only**: say so; no test evidence needed beyond a link check.
+- Always include the output of `pytest` and `ruff check .`. If something was not tested (for
+  example, no API key available), say so explicitly instead of implying it was.
+
+**Hygiene**
+- Redact secrets (API keys, passwords) and trim long logs to the lines that matter, in a
+  collapsed `<details>` block if long.
+- Keep PRs focused: one milestone item or one logical change per PR.
+- Report outcomes faithfully. If a check failed or a case is flaky, state it in the PR.
