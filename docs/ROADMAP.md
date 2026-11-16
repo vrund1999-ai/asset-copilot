@@ -113,7 +113,7 @@ Done when:
 - [ ] Unsafe model-generated SQL is blocked and the error is fed back (covered by a test with a mocked model)
 - [ ] Each tool call and final answer is in `audit_log` with the session id
 - [ ] Unit tests with a mocked Anthropic client (no network in CI)
-- [ ] Generated data and gold answers are reproducible via a fixed `--as-of` date (PR A)
+- [x] Generated data and gold answers are reproducible via a fixed `--as-of` date (PR A)
 
 ## M2. Documents: generation, ingestion, retrieval (week 2-3)
 

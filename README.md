@@ -26,7 +26,7 @@ Streamlit UI ──► FastAPI ──► Agent (Claude tool use)
 cp .env.example .env            # add ANTHROPIC_API_KEY
 docker compose up -d            # Postgres + pgvector, schema and roles auto-applied
 pip install -e ".[dev]"
-python -m asset_copilot.synth.generate --properties 60 --seed 42
+python -m asset_copilot.synth.generate --properties 60 --seed 42   # dates anchor to AS_OF_DATE (default 2026-06-30)
 uvicorn asset_copilot.api:app --reload
 streamlit run app/streamlit_app.py
 pytest
