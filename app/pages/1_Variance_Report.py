@@ -20,6 +20,12 @@ def usd(x: str) -> str:
     return f"-${abs(d):,.2f}" if d < 0 else f"${d:,.2f}"
 
 
+def sgn(x: str) -> str:
+    """Signed dollar amount for variances: +$1,000.00 / -$1,000.00."""
+    d = Decimal(x)
+    return f"+${d:,.2f}" if d > 0 else usd(x)
+
+
 def pct(x: str | None) -> str:
     return "n/a" if x is None else f"{Decimal(x):+.2f}%"
 
@@ -74,12 +80,12 @@ st.subheader(f"{state['scope']} · {month_label(state['month'])}")
 cols = st.columns(3)
 for col, ln in zip(cols, rep["totals"], strict=True):
     col.metric(LABEL[ln["line"]], usd(ln["actual"]),
-               delta=f"{usd(ln['variance'])} ({pct(ln['variance_pct'])}) vs budget",
+               delta=f"{sgn(ln['variance'])} ({pct(ln['variance_pct'])}) vs budget",
                delta_color="inverse" if ln["line"] == "opex" else "normal")
 
 st.markdown("**Totals**")
 st.dataframe([{"Line": LABEL[ln["line"]], "Actual": usd(ln["actual"]),
-               "Budget": usd(ln["budget"]), "Variance": usd(ln["variance"]),
+               "Budget": usd(ln["budget"]), "Variance": sgn(ln["variance"]),
                "Variance %": pct(ln["variance_pct"]),
                "Favorable": {True: "yes", False: "no", None: "-"}[ln["favorable"]]}
               for ln in rep["totals"]], width="stretch", hide_index=True)
@@ -87,7 +93,7 @@ st.dataframe([{"Line": LABEL[ln["line"]], "Actual": usd(ln["actual"]),
 if rep["scope"] == "portfolio":
     st.markdown("**Largest drivers (by NOI variance)**")
     st.dataframe([{"Property": d["name"], "Type": d["asset_type"],
-                   "NOI variance": usd(d["lines"][2]["variance"]),
+                   "NOI variance": sgn(d["lines"][2]["variance"]),
                    "NOI variance %": pct(d["lines"][2]["variance_pct"]),
                    "Share of portfolio NOI variance": pct(d["noi_contribution_pct"])}
                   for d in rep["drivers"]], width="stretch", hide_index=True)
@@ -95,7 +101,7 @@ if rep["scope"] == "portfolio":
 st.markdown("**Flagged for human review**")
 st.caption(f"Items with |variance| ≥ {rep['flag_pct']}% and ≥ {usd(rep['flag_min_usd'])}.")
 if rep["flags"]:
-    st.dataframe([{"Item": f["name"], "Line": LABEL[f["line"]], "Variance": usd(f["variance"]),
+    st.dataframe([{"Item": f["name"], "Line": LABEL[f["line"]], "Variance": sgn(f["variance"]),
                    "Variance %": pct(f["variance_pct"])} for f in rep["flags"]],
                  width="stretch", hide_index=True)
 else:
