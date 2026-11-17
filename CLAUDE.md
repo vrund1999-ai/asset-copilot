@@ -25,7 +25,9 @@ uvicorn asset_copilot.api:app --reload
 streamlit run app/streamlit_app.py
 pytest                               # unit tests (no DB needed)
 ruff check .
-python evals/run_evals.py            # eval harness
+python evals/run_evals.py            # eval harness (needs the API running)
+python evals/retrieval_eval.py       # retrieval hit-rate@k for document questions (no LLM)
+python evals/make_doc_questions.py --write   # regenerate the q031+ document questions
 ```
 
 Schema changes: edit `db/schema.sql`, then `docker compose down -v && docker compose up -d`
