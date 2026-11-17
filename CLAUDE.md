@@ -19,6 +19,8 @@ cp .env.example .env                 # then add ANTHROPIC_API_KEY (never commit 
 docker compose up -d                 # Postgres; applies db/schema.sql and db/roles.sql on first start
 python -m venv .venv && pip install -e ".[dev]"
 python -m asset_copilot.synth.generate --properties 60 --seed 42   # (re)load synthetic data; truncates tables
+python -m asset_copilot.synth.documents --seed 42      # write lease/loan docs + manifest.json to data/generated/
+pip install -e ".[embeddings]" && python -m asset_copilot.ingest   # embed (local model) and load documents/chunks
 uvicorn asset_copilot.api:app --reload
 streamlit run app/streamlit_app.py
 pytest                               # unit tests (no DB needed)

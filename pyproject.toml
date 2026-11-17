@@ -20,6 +20,8 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0", "ruff>=0.6"]
+# Local embedding model for document ingestion/retrieval (large install; not needed for tests).
+embeddings = ["sentence-transformers>=3.0"]
 
 [build-system]
 requires = ["setuptools>=68"]

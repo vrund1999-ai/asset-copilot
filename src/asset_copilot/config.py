@@ -16,6 +16,10 @@ class Settings(BaseSettings):
     max_tokens: int = 8192
     max_result_rows_to_model: int = 50
     anthropic_timeout: float = 60.0
+    # Documents / retrieval. The schema column is vector(1024): keep the model's dimension in sync.
+    embedding_model: str = "BAAI/bge-large-en-v1.5"
+    embedding_dim: int = 1024
+    generated_dir: str = "data/generated"
     database_url_admin: str = (
         "postgresql+psycopg://postgres:postgres@localhost:5432/asset_copilot"
     )
