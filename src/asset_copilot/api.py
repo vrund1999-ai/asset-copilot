@@ -1,9 +1,12 @@
+from datetime import date
+
 import anthropic
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
 from .governance import UnsafeQueryError
 from .schemas import AskRequest, AskResponse
+from .variance import VarianceReport
 
 app = FastAPI(title="asset-copilot", version="0.1.0")
 
@@ -41,6 +44,41 @@ def ask(req: AskRequest) -> AskResponse:
         raise HTTPException(status_code=503, detail="The model API rejected the configured key.") from e
     except anthropic.APIError as e:
         raise HTTPException(status_code=502, detail=f"Model API error: {type(e).__name__}") from e
+
+
+class VarianceRequest(BaseModel):
+    month: str  # "YYYY-MM" (or "YYYY-MM-DD"; the day is ignored)
+    property_id: int | None = None  # None = whole portfolio
+    commentary: bool = True
+    session_id: str | None = None
+
+
+def _parse_month(value: str) -> date:
+    try:
+        parts = value.strip().split("-")
+        return date(int(parts[0]), int(parts[1]), 1)
+    except (ValueError, IndexError) as e:
+        raise HTTPException(status_code=422, detail="month must look like 2026-06") from e
+
+
+@app.get("/variance/options")
+def variance_options() -> dict:
+    from .variance import options
+
+    return options()
+
+
+@app.post("/variance", response_model=VarianceReport)
+def variance(req: VarianceRequest) -> VarianceReport:
+    """Budget-vs-actual report. Numbers are computed in code; commentary is checked against them."""
+    from .variance import ReportError, build_report
+
+    month = _parse_month(req.month)
+    try:
+        return build_report(month, req.property_id, commentary=req.commentary,
+                            session_id=req.session_id)
+    except ReportError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
 
 
 @app.post("/query")

@@ -1,4 +1,5 @@
 from datetime import date
+from decimal import Decimal
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -16,6 +17,12 @@ class Settings(BaseSettings):
     max_tokens: int = 8192
     max_result_rows_to_model: int = 50
     anthropic_timeout: float = 60.0
+    # Variance report: an item is flagged for human review when BOTH thresholds are met.
+    variance_flag_pct: Decimal = Decimal(10)
+    variance_flag_min_usd: Decimal = Decimal(25000)
+    variance_top_n: int = 5
+    # Includes the model's thinking tokens, which are spent before any text is produced.
+    variance_commentary_max_tokens: int = 4000
     # Documents / retrieval. The schema column is vector(1024): keep the model's dimension in sync.
     embedding_model: str = "BAAI/bge-large-en-v1.5"
     embedding_dim: int = 1024

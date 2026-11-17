@@ -27,6 +27,7 @@ pytest                               # unit tests (no DB needed)
 ruff check .
 python evals/run_evals.py            # eval harness (needs the API running)
 python evals/retrieval_eval.py       # retrieval hit-rate@k for document questions (no LLM)
+python evals/feedback_report.py      # summarise thumbs up/down + corrections from the feedback table
 python evals/make_doc_questions.py --write   # regenerate the q031+ document questions
 ```
 

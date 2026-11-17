@@ -60,3 +60,17 @@ document AND page. Chunks added by whole-document expansion do not count as hits
 
 Use LLM-as-judge only for fuzzy document answers, and spot-check the judge against hand labels.
 Everything numeric is scored in code, never by a model.
+
+## Variance report and feedback
+
+Variance numbers are not scored by a model. `tests/test_variance_integration.py` recomputes revenue,
+opex and NOI sums, variances and percentages in SQL on the admin connection and requires exact
+equality with the report (every month for the portfolio, a spread of properties). The commentary
+check (every number must appear in the report tables) runs on each report at request time; the
+`variance_commentary` audit row records whether the model draft passed first try, after one retry,
+or fell back to the template.
+
+`python evals/feedback_report.py` summarises the `feedback` table: ratings split by chat answers vs
+variance reports (questions prefixed `[variance]`), plus thumbs-down items with corrections.
+`--export out.jsonl` writes corrected chat items as eval-question candidates; each still needs a
+verified gold answer before it joins `questions.jsonl`.
