@@ -141,9 +141,9 @@ Done when:
 - Feedback: thumbs up/down and optional correction in the UI -> `POST /feedback` -> `feedback` table.
 
 Done when:
-- [ ] Report numbers match a gold SQL calculation exactly (tested)
-- [ ] Commentary contains no number absent from the computed tables (checked automatically)
-- [ ] Feedback is stored and surfaced in an eval/analysis script
+- [x] Report numbers match a gold SQL calculation exactly (tested)
+- [x] Commentary contains no number absent from the computed tables (checked automatically)
+- [x] Feedback is stored and surfaced in an eval/analysis script
 
 ## M4. Evals and hardening (week 4)
 

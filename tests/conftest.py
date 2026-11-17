@@ -10,6 +10,20 @@ from asset_copilot import db
 from asset_copilot.governance import validate_sql
 
 
+@pytest.fixture(scope="session")
+def live_db():
+    """Skip (not fail) when no Postgres with the synthetic portfolio is reachable, e.g. in CI."""
+    from sqlalchemy import text
+
+    try:
+        with db.admin_engine().connect() as conn:
+            if not conn.execute(text("SELECT count(*) FROM operating_statements")).scalar():
+                pytest.skip("database has no synthetic data (run synth.generate)")
+    except Exception as e:  # noqa: BLE001 - any connection problem means "no DB here"
+        pytest.skip(f"no database available: {type(e).__name__}")
+    return db.admin_engine()
+
+
 @pytest.fixture
 def audit_log(monkeypatch):
     """Capture audit() calls instead of writing to Postgres."""

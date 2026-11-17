@@ -32,6 +32,7 @@ where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = ["integration: needs Postgres with the synthetic portfolio (skipped when unavailable)"]
 pythonpath = ["src", "evals"]
 
 [tool.ruff]

@@ -1,29 +1,13 @@
-import os
-import uuid
-
 import httpx
 import streamlit as st
-
-API_URL = os.getenv("API_URL", "http://localhost:8000")
+from ui_common import API_URL, error_detail, feedback_form, session_id
 
 st.set_page_config(page_title="asset-copilot", page_icon="🏢", layout="wide")
 st.title("asset-copilot")
 st.caption("Ask questions about a synthetic CRE portfolio. Answers cite their sources.")
 
 
-def error_detail(e: httpx.HTTPError) -> str:
-    """Prefer the API's own error message over httpx's generic one."""
-    if isinstance(e, httpx.HTTPStatusError):
-        try:
-            return f"{e.response.status_code}: {e.response.json()['detail']}"
-        except (ValueError, KeyError, TypeError):
-            return f"{e.response.status_code}: {e.response.text[:200]}"
-    if isinstance(e, httpx.ConnectError):
-        return f"Could not reach the API at {API_URL}. Is it running?"
-    return f"Request failed: {e}"
-
-
-def render(turn: dict) -> None:
+def render(turn: dict, key: int) -> None:
     """Render one assistant turn by status: answered / cannot_determine / failed / error."""
     status = turn.get("status", "answered")
     if status == "error":
@@ -54,18 +38,20 @@ def render(turn: dict) -> None:
     if turn.get("steps"):
         calls = "model call" if turn["steps"] == 1 else "model calls"
         st.caption(f"{turn['steps']} {calls} · session {turn.get('session_id', '')[:8]}")
+    if status != "failed":
+        feedback_form(f"chat_{key}", turn.get("question", ""), turn["content"])
 
 
-if "session_id" not in st.session_state:
-    st.session_state.session_id = str(uuid.uuid4())
+session_id()
+if "history" not in st.session_state:
     st.session_state.history = []
 
-for turn in st.session_state.history:
+for i, turn in enumerate(st.session_state.history):
     with st.chat_message(turn["role"]):
         if turn["role"] == "user":
             st.markdown(turn["content"])
         else:
-            render(turn)
+            render(turn, i)
 
 if question := st.chat_input("e.g. Which assets have >20% lease rollover in the next 18 months?"):
     st.session_state.history.append({"role": "user", "content": question})
@@ -83,6 +69,7 @@ if question := st.chat_input("e.g. Which assets have >20% lease rollover in the 
                 data = r.json()
                 turn = {
                     "role": "assistant",
+                    "question": question,
                     "content": data["answer"],
                     "status": data.get("status", "answered"),
                     "grounded": data.get("grounded", True),
@@ -92,5 +79,5 @@ if question := st.chat_input("e.g. Which assets have >20% lease rollover in the 
                 }
             except httpx.HTTPError as e:
                 turn = {"role": "assistant", "content": error_detail(e), "status": "error"}
-        render(turn)
+        render(turn, len(st.session_state.history))
     st.session_state.history.append(turn)

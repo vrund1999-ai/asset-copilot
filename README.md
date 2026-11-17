@@ -44,6 +44,6 @@ pytest
 - [x] Schema, synthetic data generator, SQL governance layer, API + UI skeleton
 - [x] Agent loop with SQL tool and citations
 - [x] Document ingestion + retrieval
-- [ ] Variance report workflow
+- [x] Variance report workflow
 - [ ] Eval harness with measured accuracy
 - [ ] Stakeholder memo and demo video
