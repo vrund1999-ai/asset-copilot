@@ -17,7 +17,7 @@ import argparse
 import json
 import time
 from collections import defaultdict
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from pathlib import Path
 
@@ -74,8 +74,89 @@ def check_rows(answer: str, gold: list[dict], ordered: bool = False) -> tuple[bo
     return True, "ok"
 
 
+DOC_CATEGORIES = {"document_lookup", "hybrid", "reconciliation"}
+FLAG_PHRASES = ("does not match", "doesn't match", "do not match", "mismatch", "differs",
+                "differ from", "inconsisten", "conflict", "disagree", "not consistent")
+FALSE_FLAG_PHRASES = ("does not match", "doesn't match", "do not match", "mismatch")
+
+
+def date_in_answer(answer: str, iso: str) -> bool:
+    """True if the answer states this date as ISO, 'March 5, 2029', 'Mar 5, 2029', '5 March 2029'
+    or 03/05/2029."""
+    d = date.fromisoformat(iso)
+    long_m, short_m = d.strftime("%B"), d.strftime("%b")
+    forms = [iso, f"{long_m} {d.day}, {d.year}", f"{long_m} {d.day} {d.year}",
+             f"{short_m} {d.day}, {d.year}", f"{short_m}. {d.day}, {d.year}",
+             f"{d.day} {long_m} {d.year}", f"{d.month:02d}/{d.day:02d}/{d.year}",
+             f"{d.month}/{d.day}/{d.year}", f"{long_m} {d.day}{_ordinal(d.day)}, {d.year}"]
+    low = answer.lower()
+    return any(f.lower() in low for f in forms)
+
+
+def _ordinal(n: int) -> str:
+    return "th" if 10 <= n % 100 <= 20 else {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th")
+
+
+def fact_matches(answer: str, fact: dict) -> bool:
+    kind, value = fact["kind"], fact["value"]
+    if kind == "number":
+        return number_matches(answer, value)
+    if kind == "date":
+        return date_in_answer(answer, value)
+    if kind == "text_any":
+        low = answer.lower()
+        return any(v.lower() in low for v in value)
+    raise ValueError(f"unknown fact kind {kind}")
+
+
+def flags_discrepancy(answer: str) -> bool:
+    low = answer.lower()
+    return low.lstrip().startswith("discrepancy") or any(p in low for p in FLAG_PHRASES)
+
+
+def falsely_flags_discrepancy(answer: str) -> bool:
+    low = answer.lower()
+    return low.lstrip().startswith("discrepancy:") or any(p in low for p in FALSE_FLAG_PHRASES)
+
+
+def score_doc(q: dict, resp: dict, gold: list[dict] | None) -> dict:
+    """Document questions: facts correct, right document+page cited, right citation kinds, grounded.
+
+    hybrid and reconciliation also need an SQL citation. Reconciliation additionally needs the
+    discrepancy flagged (seeded) or NOT flagged (clean control).
+    """
+    def fail(reason: str) -> dict:
+        return {"passed": False, "reason": reason}
+
+    if resp.get("status") != "answered":
+        return fail(f"status={resp.get('status')}")
+    answer, cites = resp["answer"], resp.get("citations", [])
+    doc_refs = {c["reference"] for c in cites if c["kind"] == "document"}
+    if not doc_refs & set(q["gold_refs"]):
+        return fail(f"gold document/page not cited (cited: {sorted(doc_refs) or 'none'})")
+    if q["category"] != "document_lookup" and not any(c["kind"] == "sql" for c in cites):
+        return fail("no sql citation")
+    if not resp.get("grounded", False):
+        return fail("ungrounded numbers in answer")
+    if gold:
+        ok, reason = check_rows(answer, gold, q.get("ordered", False))
+        if not ok:
+            return fail(reason)
+    for f in q.get("gold_facts", []):
+        if not fact_matches(answer, f):
+            return fail(f"fact not found in answer: {f['value']}")
+    if q["category"] == "reconciliation":
+        if q["expect_discrepancy"] and not flags_discrepancy(answer):
+            return fail("seeded discrepancy not flagged")
+        if not q["expect_discrepancy"] and falsely_flags_discrepancy(answer):
+            return fail("false discrepancy flagged on a clean document")
+    return {"passed": True, "reason": "ok"}
+
+
 def score(q: dict, resp: dict, gold: list[dict] | None) -> dict:
     """Score one response. Returns {passed, reason}."""
+    if q.get("category") in DOC_CATEGORIES:
+        return score_doc(q, resp, gold)
     status = resp.get("status")
     if q["expect"] == "refuse":
         ok = status == "cannot_determine"
