@@ -73,3 +73,8 @@ def test_extract_numbers_precision_sets_tolerance():
 
 def test_percent_word_is_a_percent():
     assert find_ungrounded("Rollover is 11.3 percent.", "q", [q([{"pct": "0.1125"}])], []) == []
+
+
+def test_document_labels_are_exempt():
+    from asset_copilot.grounding import extract_numbers
+    assert extract_numbers("Two options [D1] and [D12], see [Q3][C4].") == []

@@ -16,7 +16,7 @@ from sqlalchemy import text
 
 from .config import settings
 from .db import admin_engine
-from .embeddings import Embedder, get_embedder
+from .embeddings import Embedder, get_embedder, vector_literal
 
 PAGE_RE = re.compile(r"^<!-- page (\d+) -->[ \t]*$", re.MULTILINE)
 MAX_CHUNK_CHARS = 900
@@ -77,10 +77,6 @@ def build_rows(manifest: dict, base: Path, embedder: Embedder, batch_size: int =
     return rows
 
 
-def _vec(v: list[float]) -> str:
-    return "[" + ",".join(f"{x:.6f}" for x in v) + "]"
-
-
 def load_rows(rows: list[dict]) -> tuple[int, int]:
     n_chunks = 0
     with admin_engine().begin() as conn:
@@ -99,7 +95,7 @@ def load_rows(rows: list[dict]) -> tuple[int, int]:
                 conn.execute(
                     text("INSERT INTO document_chunks (document_id, page, content, embedding) "
                          "VALUES (:d, :pg, :c, CAST(:e AS vector))"),
-                    {"d": doc_id, "pg": c["page"], "c": c["content"], "e": _vec(c["embedding"])})
+                    {"d": doc_id, "pg": c["page"], "c": c["content"], "e": vector_literal(c["embedding"])})
                 n_chunks += 1
     return len(rows), n_chunks
 

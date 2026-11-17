@@ -19,6 +19,8 @@ class Settings(BaseSettings):
     # Documents / retrieval. The schema column is vector(1024): keep the model's dimension in sync.
     embedding_model: str = "BAAI/bge-large-en-v1.5"
     embedding_dim: int = 1024
+    # bge models retrieve best when queries (not documents) carry this instruction prefix.
+    embedding_query_prefix: str = "Represent this sentence for searching relevant passages: "
     generated_dir: str = "data/generated"
     database_url_admin: str = (
         "postgresql+psycopg://postgres:postgres@localhost:5432/asset_copilot"

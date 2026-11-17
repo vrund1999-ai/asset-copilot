@@ -62,5 +62,10 @@ class SentenceTransformerEmbedder:
         return [v.tolist() for v in vecs]
 
 
+def vector_literal(v: list[float]) -> str:
+    """pgvector text form, for CAST(:v AS vector)."""
+    return "[" + ",".join(f"{x:.6f}" for x in v) + "]"
+
+
 def get_embedder() -> Embedder:
     return SentenceTransformerEmbedder()
