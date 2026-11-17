@@ -68,7 +68,8 @@ def test_request_shape(fake_db, audit_log):
     assert call["model"] == settings.anthropic_model
     assert call["system"][0]["cache_control"] == {"type": "ephemeral"}
     assert settings.as_of_date.isoformat() in call["system"][0]["text"]
-    assert {t["name"] for t in call["tools"]} == {"run_sql", "calculate", "submit_answer"}
+    assert {t["name"] for t in call["tools"]} == {"run_sql", "calculate", "search_documents",
+                                                "submit_answer"}
     # claude-sonnet-5-5 rejects non-default sampling params and forced tool_choice.
     assert "temperature" not in call and "tool_choice" not in call
 

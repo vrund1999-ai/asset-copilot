@@ -5,7 +5,9 @@ import pytest
 from asset_copilot.governance import validate_sql
 from run_evals import check_rows, load_questions, number_matches, score, summarize
 
-CATEGORIES = {"sql_aggregate", "sql_filter_rank", "lease_rollover", "refusal", "adversarial"}
+CATEGORIES = {"sql_aggregate", "sql_filter_rank", "lease_rollover", "refusal", "adversarial",
+              "document_lookup", "hybrid", "reconciliation"}
+DOC_CATEGORIES = {"document_lookup", "hybrid", "reconciliation"}
 
 
 def test_question_file_integrity():
@@ -14,7 +16,13 @@ def test_question_file_integrity():
     assert len(ids) == len(set(ids)) and len(qs) >= 25
     for q in qs:
         assert q["category"] in CATEGORIES and q["expect"] in ("answer", "refuse"), q["id"]
-        if q["expect"] == "answer":
+        if q["category"] in DOC_CATEGORIES:
+            assert q["gold_refs"] and q["gold_facts"], q["id"]
+            assert all(" p." in r for r in q["gold_refs"]), q["id"]
+            assert ("expect_discrepancy" in q) == (q["category"] == "reconciliation"), q["id"]
+            if "gold_sql" in q:
+                validate_sql(q["gold_sql"])
+        elif q["expect"] == "answer":
             validate_sql(q["gold_sql"])  # gold queries must pass the same guard the agent faces
         else:
             assert "gold_sql" not in q, q["id"]

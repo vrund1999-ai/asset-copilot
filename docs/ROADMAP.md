@@ -129,9 +129,9 @@ Done when:
 - Reconciliation: flag when a document's stated value disagrees with the database (e.g. lease end date) instead of silently picking one.
 
 Done when:
-- [ ] Hybrid questions ("which assets roll over >20% in 18 months and what do their renewal options say?") answered with both citation kinds
-- [ ] At least 5 seeded discrepancies are detected and reported
-- [ ] Retrieval hit-rate measured in evals (see `docs/EVALS.md`)
+- [x] Hybrid questions ("which assets roll over >20% in 18 months and what do their renewal options say?") answered with both citation kinds
+- [x] At least 5 seeded discrepancies are detected and reported
+- [x] Retrieval hit-rate measured in evals (see `docs/EVALS.md`)
 
 ## M3. Variance report workflow (week 3-4)
 

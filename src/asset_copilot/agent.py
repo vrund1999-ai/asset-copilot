@@ -1,6 +1,6 @@
 """Agent loop (Claude tool use) for SQL questions.
 
-Tools: run_sql, calculate, submit_answer. The loop ends when the model calls submit_answer with a
+Tools: run_sql, calculate, search_documents, submit_answer. The loop ends when the model calls submit_answer with a
 valid, grounded answer, or fails safely (iteration cap, too many SQL errors, refusal, truncation).
 
 Design rules (see docs/ROADMAP.md, M1):
@@ -22,12 +22,19 @@ from .config import settings
 from .grounding import find_ungrounded
 from .prompts import build_system_prompt
 from .schemas import AskResponse, Citation
-from .tools import TOOLS, RunContext, format_decimal, run_calculate, run_sql
+from .tools import (
+    TOOLS,
+    RunContext,
+    format_decimal,
+    run_calculate,
+    run_search_documents,
+    run_sql,
+)
 
 CANNOT_DETERMINE = "I can't determine that from the data."
 SUBMIT_NUDGE = (
     "You did not call a tool. Finish by calling submit_answer (status 'answered' with query_ids, "
-    "or 'cannot_determine')."
+    "or doc_ids, or 'cannot_determine')."
 )
 
 
@@ -41,6 +48,7 @@ class _Final:
     answer: str
     query_ids: list[str] = field(default_factory=list)
     calc_ids: list[str] = field(default_factory=list)
+    doc_ids: list[str] = field(default_factory=list)
     grounded: bool = True
 
 
@@ -83,19 +91,22 @@ def _handle_submit(args: dict, ctx: RunContext, question: str) -> tuple[_Final |
 
     qids = args.get("query_ids") or []
     cids = args.get("calc_ids") or []
-    if not isinstance(qids, list) or not isinstance(cids, list):
-        return None, "query_ids and calc_ids must be arrays of strings."
-    if not qids:
-        return None, ("An 'answered' response must cite at least one query_id from run_sql. "
-                      "Run a query, or use status 'cannot_determine'.")
-    unknown_q = [q for q in qids if q not in ctx.queries]
-    unknown_c = [c for c in cids if c not in ctx.calcs]
-    if unknown_q or unknown_c:
-        return None, (f"Unknown ids: {unknown_q + unknown_c}. "
-                      f"Valid query_ids: {list(ctx.queries)}; valid calc_ids: {list(ctx.calcs)}.")
+    dids = args.get("doc_ids") or []
+    if not all(isinstance(x, list) for x in (qids, cids, dids)):
+        return None, "query_ids, calc_ids and doc_ids must be arrays of strings."
+    if not qids and not dids:
+        return None, ("An 'answered' response must cite at least one query_id from run_sql or "
+                      "doc_id from search_documents. Run a query or search, or use status "
+                      "'cannot_determine'.")
+    unknown = ([q for q in qids if q not in ctx.queries] + [c for c in cids if c not in ctx.calcs]
+               + [d for d in dids if d not in ctx.passages])
+    if unknown:
+        return None, (f"Unknown ids: {unknown}. Valid query_ids: {list(ctx.queries)}; "
+                      f"valid calc_ids: {list(ctx.calcs)}; valid doc_ids: {list(ctx.passages)}.")
 
     ungrounded = find_ungrounded(
-        answer, question, [ctx.queries[q] for q in qids], [ctx.calcs[c] for c in cids]
+        answer, question, [ctx.queries[q] for q in qids], [ctx.calcs[c] for c in cids],
+        [ctx.passages[d] for d in dids],
     )
     _audit("grounding_check", {"ungrounded": ungrounded, "correction_used": ctx.corrections},
                 ctx.session_id)
@@ -107,11 +118,15 @@ def _handle_submit(args: dict, ctx: RunContext, question: str) -> tuple[_Final |
             "then call submit_answer again."
         )
     return _Final("answered", answer.strip(), list(dict.fromkeys(qids)),
-                  list(dict.fromkeys(cids)), grounded=not ungrounded), None
+                  list(dict.fromkeys(cids)), list(dict.fromkeys(dids)),
+                  grounded=not ungrounded), None
 
 
 def _citations(final: _Final, ctx: RunContext) -> list[Citation]:
     cites = [Citation(kind="sql", reference=ctx.queries[q].sql, label=q) for q in final.query_ids]
+    for d in final.doc_ids:
+        rec = ctx.passages[d]
+        cites.append(Citation(kind="document", label=d, reference=f"{rec.title} p.{rec.page}"))
     for c in final.calc_ids:
         rec = ctx.calcs[c]
         cites.append(Citation(kind="calculation", label=c,
@@ -185,6 +200,9 @@ def run_agent(
                     payload, is_error, detail = out.payload, out.is_error, out.audit
                 elif u.name == "calculate":
                     out = run_calculate(ctx, args)
+                    payload, is_error, detail = out.payload, out.is_error, out.audit
+                elif u.name == "search_documents":
+                    out = run_search_documents(ctx, args)
                     payload, is_error, detail = out.payload, out.is_error, out.audit
                 elif u.name == "submit_answer":
                     if others_present:

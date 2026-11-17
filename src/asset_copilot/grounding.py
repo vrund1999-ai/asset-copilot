@@ -1,8 +1,8 @@
 """Check that every number in an answer traces back to a tool result.
 
 Policy: a number is grounded if it matches (within the precision it was written at) a value in a
-cited query result, a cited calculation result, a row count of a cited query, or a number the user
-wrote in the question. Dates, query/calc labels and list indexes are exempt.
+cited query result, a cited calculation result, a row count of a cited query, a number in a cited
+document passage (or its page number), or a number the user wrote in the question. Dates, query/calc labels and list indexes are exempt.
 
 Signs are ignored ("down 5%" matches -5), because direction is stated in words.
 """
@@ -11,14 +11,14 @@ import re
 from collections.abc import Iterable
 from decimal import Decimal, InvalidOperation
 
-from .tools import CalcRecord, QueryRecord
+from .tools import CalcRecord, PassageRecord, QueryRecord
 
 _MONTHS = (
     r"(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|"
     r"Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)"
 )
 _EXEMPT = [
-    re.compile(r"\b[QC]\d+\b"),  # Q1 / C2 labels (also quarter names)
+    re.compile(r"\b[QCD]\d+\b"),  # Q1 / C2 / D3 labels (also quarter names)
     re.compile(r"\b\d{4}-\d{2}(?:-\d{2})?\b"),  # ISO dates
     re.compile(rf"\b{_MONTHS}\.?\s+(?:\d{{1,2}}(?:st|nd|rd|th)?,?\s+)?\d{{4}}\b", re.IGNORECASE),
     re.compile(rf"\b{_MONTHS}\.?\s+\d{{1,2}}(?:st|nd|rd|th)?\b", re.IGNORECASE),
@@ -76,7 +76,8 @@ def _numeric(v) -> Decimal | None:
 
 
 def build_pool(
-    question: str, queries: Iterable[QueryRecord], calcs: Iterable[CalcRecord]
+    question: str, queries: Iterable[QueryRecord], calcs: Iterable[CalcRecord],
+    passages: Iterable[PassageRecord] = (),
 ) -> list[Decimal]:
     pool: list[Decimal] = []
     pool.extend(v for _, v, _, _ in extract_numbers(question))
@@ -88,14 +89,18 @@ def build_pool(
                 if n is not None:
                     pool.append(n)
     pool.extend(c.result for c in calcs)
+    for p in passages:
+        pool.append(Decimal(p.page))
+        pool.extend(v for _, v, _, _ in extract_numbers(p.content))
     return [abs(p) for p in pool]
 
 
 def find_ungrounded(
-    answer: str, question: str, queries: Iterable[QueryRecord], calcs: Iterable[CalcRecord]
+    answer: str, question: str, queries: Iterable[QueryRecord], calcs: Iterable[CalcRecord],
+    passages: Iterable[PassageRecord] = (),
 ) -> list[str]:
     """Numbers in `answer` that match nothing in the cited results. Empty list means grounded."""
-    pool = build_pool(question, queries, calcs)
+    pool = build_pool(question, queries, calcs, passages)
     bad = []
     for original, value, tol, is_pct in extract_numbers(answer):
         value = abs(value)
