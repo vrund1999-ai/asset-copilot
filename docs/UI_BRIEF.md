@@ -5,7 +5,7 @@ is a proposal to confirm before building.
 
 ## Why
 
-The current UI (`app/streamlit_app.py`, `app/pages/1_Variance_Report.py`) proves the backend works:
+The original UI (a chat page and one report page, before slice 1) proves the backend works:
 a chat box and one report page, default styling, citations in a single expander. It does not
 orient a new visitor, treats every reader the same, and hides the things this project is about
 (sources, governance, measured accuracy) behind clicks.
@@ -49,9 +49,9 @@ is Asset manager.
   (no data outside the database and documents; cannot change data).
 - **Navigation shell**: `st.navigation` with Home, Ask, Variance report; sidebar holds the View
   toggle and API status (reachable / not reachable) so API-down is visible before a question fails.
-- **Open decision: snapshot data.** The snapshot needs one cheap read-only endpoint (for example
-  `GET /portfolio/summary`) reusing the variance code for the latest month. This is a small backend
-  addition and needs tests. Alternative: show only static copy and sample questions in this slice.
+- **Decided: the snapshot is included.** It is served by a small read-only endpoint,
+  `GET /portfolio/summary`, that reuses the variance code for the latest month (no model call, no
+  audit row, tested against independent SQL).
 
 ## Visual direction (proposal)
 
@@ -74,7 +74,8 @@ any change to agent or governance behaviour.
 
 ## Slices
 
-1. Landing page, navigation shell, View toggle (this brief's first slice).
+1. Landing page, navigation shell, View toggle. **Done.** Layout: `app/streamlit_app.py` (entry,
+   sidebar, navigation), `app/screens/` (home, ask, variance_report), `.streamlit/config.toml` (theme).
 2. Ask page: result-first answers and source cards per view, state handling, one-click feedback.
 3. Variance report: flagged first, sortable tables, drill-down.
 4. Document citations show the supporting page text.

@@ -181,13 +181,13 @@ shows run-to-run noise.
 
 ## M7. UI revamp (after M6)
 
-The Streamlit UI (`app/streamlit_app.py`, `app/pages/1_Variance_Report.py`) was built to show that
+The original Streamlit UI (a chat page and one report page) was built to show that
 the backend works. Goal: an interface a portfolio manager would choose to use, still in Streamlit
 unless a concrete need says otherwise. Scope the design first; do not start by restyling.
 
 - [x] Short design brief: [`docs/UI_BRIEF.md`](UI_BRIEF.md) (audiences, tasks, scope, slices)
-- [ ] Landing page, navigation shell and a View toggle (Asset manager / Analyst / Reviewer) that changes
-      presentation only, never the answer
+- [x] Landing page, navigation shell and a View toggle (Asset manager / Analyst / Reviewer) that changes
+      presentation only, never the answer (slice 1; includes a read-only `GET /portfolio/summary`)
 - [ ] Answers lead with the result; citations, SQL and document excerpts are one click away but not in the way
 - [ ] Clear distinct states for answered, refused, ungrounded, loading and API-down (screenshots of each)
 - [ ] Variance report: sortable tables, flagged items first, drill from a flag to the underlying month and property

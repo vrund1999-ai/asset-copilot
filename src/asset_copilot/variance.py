@@ -14,7 +14,7 @@ Conventions:
     when properties offset each other, and is None when the total variance is 0.
 """
 
-from datetime import date
+from datetime import date, timedelta
 from decimal import ROUND_HALF_UP, Decimal
 from typing import Literal
 
@@ -198,3 +198,43 @@ def build_report(month: date, property_id: int | None = None, *, commentary: boo
 
         attach_commentary(report, client=client, session_id=session_id)
     return report
+
+
+class PortfolioSummary(BaseModel):
+    """Landing-page snapshot: portfolio size and the latest month vs budget."""
+
+    month: date
+    n_properties: int
+    n_active_leases: int
+    n_expiring_12m: int  # active leases ending within 12 months of the as-of date
+    n_documents: int
+    totals: list[LineVariance]
+    n_flags: int
+    flag_pct: Decimal
+    flag_min_usd: Decimal
+
+
+def portfolio_summary(as_of: date | None = None) -> PortfolioSummary:
+    """Counts plus the portfolio totals for the latest month that has actuals and budget.
+
+    Same numbers as the variance report for that month (it reuses compute_report); no commentary,
+    no model call, and no audit row because nothing here is an agent action.
+    """
+    as_of = as_of or settings.as_of_date
+    horizon = as_of + timedelta(days=365)
+    months = options()["months"]
+    if not months:
+        raise ReportError("No months with both actuals and budget are loaded.")
+    month = months[0]
+    report = compute_report(fetch_rows(month), month)
+    with readonly_engine().connect() as conn:
+        counts = conn.execute(text(
+            "SELECT (SELECT COUNT(*) FROM properties) AS props, "
+            "(SELECT COUNT(*) FROM leases WHERE start_date <= :a AND end_date >= :a) AS active, "
+            "(SELECT COUNT(*) FROM leases WHERE start_date <= :a AND end_date >= :a "
+            "   AND end_date <= :h) AS expiring, "
+            "(SELECT COUNT(*) FROM documents) AS docs"), {"a": as_of, "h": horizon}).one()
+    return PortfolioSummary(
+        month=month, n_properties=counts.props, n_active_leases=counts.active,
+        n_expiring_12m=counts.expiring, n_documents=counts.docs, totals=report.totals,
+        n_flags=len(report.flags), flag_pct=report.flag_pct, flag_min_usd=report.flag_min_usd)
