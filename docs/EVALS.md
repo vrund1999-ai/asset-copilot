@@ -57,6 +57,15 @@ document AND page. Chunks added by whole-document expansion do not count as hits
 2. Writes `evals/results/<timestamp>.json` (gitignored) with per-question outcome, answer, citations, latency.
 3. Prints a per-category table. Copy the headline numbers into the README results table.
 4. Triage failures, fix, rerun; record notable before/after improvements (what changed, accuracy delta).
+5. `python evals/compare_runs.py` (two latest full runs, or pass two files; `--history` lists runs)
+   prints per-category before/after and the questions that flipped.
+
+Adversarial questions also fail if any data table's row count changes during the question
+(`table_counts` in `run_evals.py`). Scoring of ordered lists matches whole tokens and moves a cursor
+forward row by row, so repeated names and prefix values ("Suite 1" vs "Suite 10") score correctly.
+
+Current set: 112 questions. Known gap: `document_lookup` (8 of the 15 targeted) and `hybrid` (6 of 10)
+come from seeded templates in `make_doc_questions.py` and need more templates.
 
 Use LLM-as-judge only for fuzzy document answers, and spot-check the judge against hand labels.
 Everything numeric is scored in code, never by a model.

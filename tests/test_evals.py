@@ -107,3 +107,30 @@ def test_summarize_counts_false_refusals_and_ungrounded():
     assert s["by_category"] == {"a": {"n": 2, "passed": 1}, "b": {"n": 2, "passed": 1}}
     assert s["refusal_false_positives"] == 1 and s["ungrounded"] == 1
     assert s["avg_latency_s"] == 2.0 and s["total_tokens"] == 60
+
+
+ROSS = [{"name": "Ross", "suite": "Suite 10"}, {"name": "Ross", "suite": "Suite 1"},
+        {"name": "Santos", "suite": "Suite 3"}, {"name": "Ross", "suite": "Suite 7"}]
+ROSS_ANSWER = ("- Ross, Suite 10: $79\n- Ross, Suite 1: $78\n- Santos, Suite 3: $77\n"
+               "- Ross, Suite 7: $76")
+
+
+def test_ordered_rows_with_repeated_names_and_prefix_values():
+    # Regression (eval q087): "Suite 1" is a prefix of "Suite 10" and "Ross" repeats.
+    assert check_rows(ROSS_ANSWER, ROSS, ordered=True) == (True, "ok")
+
+
+def test_ordered_rows_detect_a_real_swap():
+    swapped = "- Ross, Suite 1: $78\n- Ross, Suite 10: $79\n- Santos, Suite 3\n- Ross, Suite 7"
+    ok, reason = check_rows(swapped, ROSS, ordered=True)
+    assert not ok and reason == "rows appear in the wrong order"
+
+
+def test_prefix_value_does_not_match_a_longer_token():
+    ok, reason = check_rows("Ross, Suite 10 only", [{"name": "Ross", "suite": "Suite 1"}])
+    assert not ok and "Suite 1" in reason
+
+
+def test_unordered_rows_ignore_position():
+    assert check_rows("Santos Suite 3, then Ross Suite 10", [
+        {"name": "Ross", "suite": "Suite 10"}, {"name": "Santos", "suite": "Suite 3"}])[0]

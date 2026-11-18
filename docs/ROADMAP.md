@@ -151,9 +151,9 @@ See `docs/EVALS.md`. Build the labeled set (target 100+ questions), scoring, per
 and a results history so improvements are visible (before/after table in the README).
 
 Done when:
-- [ ] `python evals/run_evals.py` produces per-category accuracy and writes `evals/results/<timestamp>.json`
-- [ ] README includes a results table and at least one documented improvement driven by eval failures
-- [ ] CI runs unit tests; evals run manually (they need an API key and DB)
+- [x] `python evals/run_evals.py` produces per-category accuracy and writes `evals/results/<timestamp>.json`
+- [x] README includes a results table and at least one documented improvement driven by eval failures
+- [x] CI runs unit tests; evals run manually (they need an API key and DB)
 
 ## M5. Packaging and communication (week 5)
 
