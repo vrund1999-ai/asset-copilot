@@ -6,7 +6,7 @@ from pydantic import BaseModel
 
 from .governance import UnsafeQueryError
 from .schemas import AskRequest, AskResponse
-from .variance import VarianceReport
+from .variance import PortfolioSummary, VarianceReport
 
 app = FastAPI(title="asset-copilot", version="0.1.0")
 
@@ -66,6 +66,17 @@ def variance_options() -> dict:
     from .variance import options
 
     return options()
+
+
+@app.get("/portfolio/summary", response_model=PortfolioSummary)
+def portfolio_summary_endpoint() -> PortfolioSummary:
+    """Landing-page snapshot: counts and the latest month vs budget (read-only, no model call)."""
+    from .variance import ReportError, portfolio_summary
+
+    try:
+        return portfolio_summary()
+    except ReportError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
 
 
 @app.post("/variance", response_model=VarianceReport)

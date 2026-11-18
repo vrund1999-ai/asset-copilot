@@ -158,6 +158,7 @@ questions from outside the author, ideally real thumbs-down feedback
 
 - [`docs/STAKEHOLDER_MEMO.md`](docs/STAKEHOLDER_MEMO.md): one-page memo for a non-technical decision maker
 - [`docs/ROADMAP.md`](docs/ROADMAP.md): milestones with acceptance criteria
+- [`docs/UI_BRIEF.md`](docs/UI_BRIEF.md): design brief for the UI revamp (M7)
 - [`docs/EVALS.md`](docs/EVALS.md): evaluation plan, categories, and metrics
 - [`docs/SKILLS_DEMONSTRATED.md`](docs/SKILLS_DEMONSTRATED.md): the skills this project is meant to demonstrate
 - [`CLAUDE.md`](CLAUDE.md): conventions and rules for AI-assisted development

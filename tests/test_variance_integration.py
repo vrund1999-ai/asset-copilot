@@ -107,3 +107,28 @@ def test_report_writes_audit_row_with_session(live_db):
             "SELECT count(*) FROM audit_log WHERE session_id = 'itest-variance'")).scalar()
         conn.execute(text("DELETE FROM audit_log WHERE session_id = 'itest-variance'"))
     assert after == before + 1
+
+
+def test_portfolio_summary_matches_gold_sql(live_db):
+    s = variance.portfolio_summary()
+    with live_db.connect() as conn:
+        latest = conn.execute(text(
+            "SELECT MAX(o.month) FROM operating_statements o JOIN budgets b "
+            "USING (property_id, month)")).scalar()
+        props = conn.execute(text("SELECT COUNT(*) FROM properties")).scalar()
+        active = conn.execute(text(
+            "SELECT COUNT(*) FROM leases WHERE start_date <= :a AND end_date >= :a"),
+            {"a": date(2026, 6, 30)}).scalar()
+        expiring = conn.execute(text(
+            "SELECT COUNT(*) FROM leases WHERE start_date <= :a AND end_date >= :a "
+            "AND end_date <= :a + 365"), {"a": date(2026, 6, 30)}).scalar()
+        docs = conn.execute(text("SELECT COUNT(*) FROM documents")).scalar()
+    g = gold(live_db, latest)
+    assert s.month == latest and s.n_properties == props
+    assert (s.n_active_leases, s.n_expiring_12m, s.n_documents) == (active, expiring, docs)
+    by = {ln.line: ln for ln in s.totals}
+    for line in ("revenue", "opex", "noi"):
+        a, b, v, p = g[line]
+        assert (by[line].actual, by[line].budget, by[line].variance) == (a, b, v)
+        assert by[line].variance_pct == p
+    assert s.n_flags == len(variance.compute_report(variance.fetch_rows(latest), latest).flags)

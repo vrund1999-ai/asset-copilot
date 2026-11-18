@@ -5,7 +5,6 @@ import httpx
 import streamlit as st
 from ui_common import API_URL, error_detail, feedback_form, session_id
 
-st.set_page_config(page_title="Variance report", page_icon="📊", layout="wide")
 st.title("Variance report")
 st.caption(
     "Budget vs actual for one month. All numbers are computed in code; the commentary is "

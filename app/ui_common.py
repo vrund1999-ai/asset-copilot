@@ -53,3 +53,67 @@ def feedback_form(key: str, question: str, answer: str) -> None:
             return
         st.session_state[sent_key] = True
         st.rerun()
+
+
+VIEWS = ("Asset manager", "Analyst", "Reviewer")
+VIEW_HELP = {
+    "Asset manager": "Plain-language answers first; sources one click away.",
+    "Analyst": "Sources open by default, for checking the SQL and documents.",
+    "Reviewer": "Adds how answers are checked and where the results are documented.",
+}
+
+
+def current_view() -> str:
+    """The selected view. It changes presentation only, never the answer.
+
+    Kept under a plain session key (not the radio's widget key): st.switch_page drops widget
+    state, which silently reset the view when a sample question moved the user to Ask.
+    """
+    view = st.session_state.get("_view")
+    return view if view in VIEWS else VIEWS[0]
+
+
+def view_toggle() -> None:
+    """Sidebar radio; mirrored into the URL (?view=analyst) so a link keeps the choice."""
+    if "_view" not in st.session_state:
+        wanted = str(st.query_params.get("view", "")).lower()
+        st.session_state["_view"] = next(
+            (v for v in VIEWS if v.split()[0].lower() == wanted), VIEWS[0])
+    st.session_state["_view"] = st.sidebar.radio(
+        "View", VIEWS, index=VIEWS.index(current_view()),
+        help="Changes how results are shown, not the answers themselves.")
+    st.sidebar.caption(VIEW_HELP[current_view()])
+    st.query_params["view"] = current_view().split()[0].lower()
+
+
+@st.cache_data(ttl=15, show_spinner=False)
+def api_status() -> tuple[bool, str]:
+    """(reachable, detail) from GET /health, cached briefly so every rerun does not hit the API."""
+    try:
+        httpx.get(f"{API_URL}/health", timeout=3).raise_for_status()
+        return True, "API reachable"
+    except httpx.HTTPError as e:
+        return False, error_detail(e)
+
+
+@st.cache_data(ttl=60, show_spinner=False)
+def portfolio_summary() -> dict:
+    r = httpx.get(f"{API_URL}/portfolio/summary", timeout=30)
+    r.raise_for_status()
+    return r.json()
+
+
+CSS = """
+<style>
+  [data-testid="stMetricValue"], [data-testid="stDataFrame"] { font-variant-numeric: tabular-nums; }
+  .ac-card { border: 1px solid rgba(128,128,128,.25); border-radius: .6rem; padding: .9rem 1rem;
+             height: 100%; }
+  .ac-card h4 { margin: 0 0 .3rem 0; font-size: 1rem; }
+  .ac-muted { opacity: .7; font-size: .9rem; }
+  .block-container { padding-top: 2rem; max-width: 1200px; }
+</style>
+"""
+
+
+def inject_css() -> None:
+    st.markdown(CSS, unsafe_allow_html=True)

@@ -80,3 +80,32 @@ def test_failed_status_is_still_http_200(client, monkeypatch):
         answer="I couldn't complete this within 8 steps.", status="failed", grounded=False))
     r = client.post("/ask", json={"question": "hi"})
     assert r.status_code == 200 and r.json()["status"] == "failed"
+
+
+def test_portfolio_summary_endpoint(client, monkeypatch):
+    from datetime import date
+    from decimal import Decimal
+
+    from asset_copilot import variance
+
+    line = variance.line_variance("noi", Decimal(90), Decimal(100), Decimal(10), Decimal(5))
+    summary = variance.PortfolioSummary(
+        month=date(2026, 6, 1), n_properties=60, n_active_leases=900, n_expiring_12m=120,
+        n_documents=55, totals=[line], n_flags=3, flag_pct=Decimal(10), flag_min_usd=Decimal(25000))
+    monkeypatch.setattr(variance, "portfolio_summary", lambda: summary)
+    r = client.get("/portfolio/summary")
+    body = r.json()
+    assert r.status_code == 200 and body["month"] == "2026-06-01"
+    assert body["n_properties"] == 60 and body["n_flags"] == 3
+    assert body["totals"][0]["variance"] == "-10.00"
+
+
+def test_portfolio_summary_without_data_is_404(client, monkeypatch):
+    from asset_copilot import variance
+
+    def no_data():
+        raise variance.ReportError("No months with both actuals and budget are loaded.")
+
+    monkeypatch.setattr(variance, "portfolio_summary", no_data)
+    r = client.get("/portfolio/summary")
+    assert r.status_code == 404 and "No months" in r.json()["detail"]
