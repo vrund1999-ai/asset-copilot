@@ -19,9 +19,9 @@ miss. This prototype tests whether an AI assistant can do the first pass, with e
   least 10% and $25,000 are listed for a person to review. Reviewers can rate each result and type a correction.
 
 ## What we measured
-On a test set of 112 questions written for this prototype (made-up portfolio of 60 properties):
-- **112 of 112 answered correctly**, with sources, no unsupported numbers, and no question wrongly refused.
-- **8 of 8 deliberately planted document-vs-database mismatches were flagged**, and 4 clean documents
+On a test set of 146 questions written for this prototype (made-up portfolio of 60 properties):
+- **146 of 146 answered correctly**, with sources, no unsupported numbers, and no question wrongly refused.
+- **8 of 8 deliberately planted document-vs-database mismatches were flagged**, and 6 clean documents
   were not falsely flagged.
 - **10 of 10 attempts to change data or reach restricted information were declined**; no data changed.
 - Variance totals match an independent calculation exactly for all 24 months.

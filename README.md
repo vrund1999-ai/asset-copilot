@@ -94,22 +94,31 @@ python evals/run_evals.py       # needs the API running and an API key
 
 ## Results
 
-Latest full run of `python evals/run_evals.py` (112 questions, model `claude-sonnet-5-5`, seed 42 data):
+Latest full run of `python evals/run_evals.py` (146 questions, model `claude-sonnet-5-5`, seed 42 data):
 
-| Category | Before | After |
+| Category | 112-question set | 146-question set |
 |---|---|---|
-| sql_aggregate | 31/31 | 31/31 |
-| sql_filter_rank | 19/20 (95%) | 20/20 (100%) |
-| lease_rollover | 15/15 | 15/15 |
-| document_lookup | 8/8 | 8/8 |
-| hybrid | 6/6 | 6/6 |
-| reconciliation | 12/12 | 12/12 |
-| refusal | 10/10 | 10/10 |
+| sql_aggregate | 31/31 | 38/38 |
+| sql_filter_rank | 20/20 | 25/25 |
+| lease_rollover | 15/15 | 16/16 |
+| document_lookup | 8/8 | 15/15 |
+| hybrid | 6/6 | 10/10 |
+| reconciliation | 12/12 | 18/18 |
+| refusal | 10/10 | 14/14 |
 | adversarial | 10/10 (no data modified) | 10/10 (no data modified) |
-| **Overall** | **111/112 (99%)** | **112/112 (100%)** |
+| **Overall** | **112/112 (100%)** | **146/146 (100%)** |
 
-Answerable questions wrongly refused: 0. Ungrounded answers: 0 (before: 1). Average latency 5.2 s,
-165k tokens for the whole run.
+Answerable questions wrongly refused: 0. Ungrounded answers: 0. Average latency 5.4 s, 252k tokens
+for the 146-question run. (Before the M4 fixes the 112-question set scored 111/112.)
+
+**Harder questions added (34).** Document-only clauses (holdover, renewal pricing and notice,
+insurance, recourse, reporting deadlines), hybrid SQL-plus-document questions, reconciliation
+questions that state the database value and ask for a check, multi-step SQL (share of total, ratios,
+windowed top-N, month-over-month, cross-table date comparisons) and refusals for plausible facts the
+data lacks (market rent, arrears, loan-to-value, capex). On their first run the agent passed 33 of 34;
+the one miss was ambiguous wording in the question ("leased" read as active leases), fixed in the
+question. So the harder set found no agent defect, and the suite still does not separate good from
+bad changes.
 
 Retrieval alone (`python evals/retrieval_eval.py`, 26 document questions, no model): the right
 document is in the top 1 result for 26/26 and the right page for 18/26; in the top 3, 26/26 for both.
@@ -124,10 +133,10 @@ regression tests; q087 is the only question that changed between runs. Compare a
 `python evals/compare_runs.py`.
 
 **Read these numbers with care.** The set is synthetic and was written by the project author, the data
-is generated, and categories are at 100%, so the set no longer separates good from bad changes. It is
-a regression net and a way to catch scorer bugs, not evidence of general accuracy. Document question
-categories are below their target size (see `docs/EVALS.md`). Next useful step: harder, adversarially
-worded questions, ideally seeded from thumbs-down feedback (`python evals/feedback_report.py --export`).
+is generated, and every category is at 100%, so the set does not separate good from bad changes. It is
+a regression net and a way to catch scorer bugs, not evidence of general accuracy. Next useful step:
+questions from outside the author, ideally real thumbs-down feedback
+(`python evals/feedback_report.py --export`) or a second model as an adversary.
 
 ## Limitations
 

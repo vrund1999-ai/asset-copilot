@@ -15,6 +15,7 @@ and refusals for facts that are not in any document. See docs/EVALS.md.
 import argparse
 import json
 import random
+import re
 from pathlib import Path
 
 from sqlalchemy import text
@@ -24,6 +25,7 @@ from asset_copilot.db import admin_engine
 
 QUESTIONS = Path(__file__).parent / "questions.jsonl"
 FIRST_ID = 31
+LEGACY_N = 30  # q031-q060 predate id decoupling; later additions get fresh ids
 WORDS = {0: "none", 1: "one", 2: "two", 3: "three"}
 
 
@@ -94,8 +96,9 @@ def build(seed: int = 7) -> list[dict]:
     out: list[dict] = []
 
     def add(category, question, expect="answer", **extra):
-        out.append({"id": f"q{FIRST_ID + len(out):03d}", "category": category,
-                    "question": question, "expect": expect, **extra})
+        # Ids are assigned in main(): the first LEGACY_N keep q031.., later rows get fresh ids.
+        out.append({"id": None, "category": category, "question": question, "expect": expect,
+                    "generated": True, **extra})
 
     def refs(d, *pages):
         return [f"{d['title']} p.{p}" for p in pages]
@@ -217,22 +220,214 @@ def build(seed: int = 7) -> list[dict]:
         d = take(clean_loans)
         r = debts[d["property_id"]]
         add("refusal", f"What is the {topic} in the loan on {r['prop']}?", expect="refuse")
+    # ---- harder document questions (appended last so earlier picks are unchanged) ----
+    # Facts below exist ONLY in the document text; gold values are parsed from it. Documents may
+    # be reused here (different facts), so these draw from pools without the `used` constraint.
+    def pick(pool, pred):
+        ok = [d for d in pool if pred(d)]
+        if not ok:
+            raise RuntimeError("no document satisfies the predicate; regenerate with more")
+        return rnd.choice(ok)
+
+    def holdover(d):
+        m = re.search(r"is (\d+)% of the rent in effect for the first (\d+) days and (\d+)% "
+                      r"thereafter", text_of(d["file"]))
+        return tuple(int(x) for x in m.groups())
+
+    def renewal_terms(d):
+        m = re.search(r"at (\d+)% of fair market rent, exercisable on (\d+) months",
+                      text_of(d["file"]))
+        return int(m.group(1)), int(m.group(2))
+
+    def insurance(d):
+        m = re.search(r"not less than \$([\d,]+) per occurrence", text_of(d["file"]))
+        return int(m.group(1).replace(",", ""))
+
+    def reporting(d):
+        m = re.search(r"within (\d+) days of quarter end and audited annual statements within "
+                      r"(\d+) days", text_of(d["file"]))
+        return int(m.group(1)), int(m.group(2))
+
+    def has_holdover(d):
+        return bool(re.search(r"first \d+ days and \d+% thereafter", text_of(d["file"])))
+
+    def has_renewal(d):
+        return leases[d["lease_id"]]["renewal_options"] >= 1 and bool(
+            re.search(r"fair market rent, exercisable on", text_of(d["file"])))
+
+    def nonrecourse(d):
+        return "non-recourse" in text_of(d["file"])
+
+    def has_report(d):
+        return bool(re.search(r"audited annual statements within", text_of(d["file"])))
+
+    def has_ins(d):
+        return bool(re.search(r"not less than \$[\d,]+ per occurrence", text_of(d["file"])))
+
+    def anything(d):
+        return True
+
+    d = pick(clean_leases, has_holdover)
+    r = leases[d["lease_id"]]
+    h = holdover(d)
+    add("document_lookup",
+        f"If {r['tenant']} stays past the end of its lease at {r['prop']} ({r['suite']}), what "
+        f"percentage of its normal rent does it pay for the first {h[1]} days, and what percentage "
+        f"after that?",
+        gold_refs=refs(d, 3), gold_facts=[num(h[0]), num(h[2])])
+    d = pick(clean_leases, has_renewal)
+    r = leases[d["lease_id"]]
+    t = renewal_terms(d)
+    add("document_lookup",
+        f"What share of fair market rent would {r['tenant']} pay if it exercises a renewal option "
+        f"at {r['prop']} ({r['suite']}), and how many months notice must it give?",
+        gold_refs=refs(d, 2), gold_facts=[num(t[0]), num(t[1])])
+    d = pick(clean_leases, anything)
+    r = leases[d["lease_id"]]
+    add("document_lookup",
+        f"On what date did {lref(d, r)} commence, according to the lease abstract?",
+        gold_refs=refs(d, 1), gold_facts=[date_fact(r["start_date"].isoformat())])
+    d = pick(clean_leases, has_ins)
+    r = leases[d["lease_id"]]
+    add("document_lookup",
+        f"What is the minimum liability insurance coverage per occurrence that {r['tenant']} must "
+        f"carry at {r['prop']} ({r['suite']})?",
+        gold_refs=refs(d, 3), gold_facts=[num(insurance(d))])
+    d = pick(clean_loans, nonrecourse)
+    r = debts[d["property_id"]]
+    add("document_lookup",
+        f"Is the loan on {r['prop']} recourse or non-recourse to the borrower?",
+        gold_refs=refs(d, 2),
+        gold_facts=[{"kind": "text_any", "value": ["non-recourse", "nonrecourse"]}])
+    d = pick(clean_loans, has_report)
+    r = debts[d["property_id"]]
+    add("document_lookup",
+        f"How many days after year end does the borrower of the {r['prop']} loan have to deliver "
+        f"audited annual statements?",
+        gold_refs=refs(d, 2), gold_facts=[num(reporting(d)[1])])
+    d = pick(clean_loans, anything)
+    r = debts[d["property_id"]]
+    add("document_lookup",
+        f"Which bank lends on {r['prop']}, and what was the original principal in the loan "
+        f"summary?",
+        gold_refs=refs(d, 1),
+        gold_facts=[{"kind": "text_any", "value": [r["lender"]]}, num(r["principal"])])
+
+    d = pick(clean_leases, has_holdover)
+    r = leases[d["lease_id"]]
+    add("hybrid",
+        f"What is the annual base rent in dollars (rent per square foot times leased square feet) "
+        f"for {r['tenant']}'s lease at {r['prop']} ({r['suite']}), and what percentage of normal "
+        f"rent is charged in holdover for the first {holdover(d)[1]} days?",
+        gold_sql=f"SELECT base_rent_psf * leased_sq_ft AS annual_rent FROM leases "
+                 f"WHERE lease_id = {r['lease_id']}",
+        gold_refs=refs(d, 3), gold_facts=[num(holdover(d)[0])])
+    d = pick(clean_loans, has_report)
+    r = debts[d["property_id"]]
+    add("hybrid",
+        f"How many days from June 30, 2026 until the loan on {r['prop']} matures, and how many "
+        f"days does the borrower have to deliver audited annual statements?",
+        gold_sql=f"SELECT (maturity_date - DATE '2026-06-30') AS days FROM debt "
+                 f"WHERE property_id = {r['property_id']}",
+        gold_refs=refs(d, 2), gold_facts=[num(reporting(d)[1])])
+    d = pick(clean_loans, nonrecourse)
+    r = debts[d["property_id"]]
+    lender = r["lender"].replace("'", "''")
+    add("hybrid",
+        f"How many loans in the portfolio does {r['lender']} hold, and is the loan on "
+        f"{r['prop']} recourse or non-recourse?",
+        gold_sql=f"SELECT COUNT(*) AS n FROM debt WHERE lender = '{lender}'",
+        gold_refs=refs(d, 2),
+        gold_facts=[{"kind": "text_any", "value": ["non-recourse", "nonrecourse"]}])
+    d = pick(clean_leases, has_holdover)
+    r = leases[d["lease_id"]]
+    add("hybrid",
+        f"How many square feet does {r['tenant']} lease at {r['prop']} ({r['suite']}) according "
+        f"to our database, and for how many days is holdover charged at the first-tier rate in "
+        f"its lease?",
+        gold_sql=f"SELECT leased_sq_ft FROM leases WHERE lease_id = {r['lease_id']}",
+        gold_refs=refs(d, 3), gold_facts=[num(holdover(d)[1])])
+
+    # Reconciliation, reworded so the question states the database value and asks for a check
+    # (the original wording never gave the value). Seeded mismatches must still be flagged.
+    by_field = {}
+    for item in manifest["discrepancies"]:
+        by_field.setdefault(item["field"], item)
+
+    def shown(field, v):
+        return f"{float(v) * 100:.2f}%" if field == "rate" else str(v)
+
+    templates = {
+        "end_date": ("Our system shows {who} ending on {db}. Can you check that against its "
+                     "lease abstract?"),
+        "renewal_options": ("Our records say {who} has {db} renewal option(s). Does its lease "
+                            "abstract agree?"),
+        "maturity_date": ("Our debt records show the loan on {prop} maturing on {db}. Is that "
+                          "what the loan summary says?"),
+        "rate": ("The database lists the interest rate on the {prop} loan as {db}. Does the "
+                 "loan summary say the same?"),
+    }
+    for field, tmpl in templates.items():
+        item = by_field[field]
+        d = docs[item["file"]]
+        if item["entity"] == "lease":
+            who, prop = lref(d, leases[item["entity_id"]]), None
+        else:
+            who, prop = None, debts[item["entity_id"]]["prop"]
+        add("reconciliation", tmpl.format(who=who, prop=prop, db=shown(field, item["db_value"])),
+            expect_discrepancy=True, gold_refs=refs(d, item["page"]),
+            gold_facts=[fact(field, item["db_value"]), fact(field, item["doc_value"])],
+            seeded_field=field)
+    d = pick(clean_leases, anything)
+    r = leases[d["lease_id"]]
+    add("reconciliation",
+        f"Our system shows {lref(d, r)} ending on {r['end_date'].isoformat()}. Can you check "
+        f"that against its lease abstract?",
+        expect_discrepancy=False, gold_refs=refs(d, 1),
+        gold_facts=[date_fact(r["end_date"].isoformat())], seeded_field=None)
+    d = pick(clean_loans, anything)
+    r = debts[d["property_id"]]
+    add("reconciliation",
+        f"The database lists the interest rate on the {r['prop']} loan as "
+        f"{float(r['rate']) * 100:.2f}%. Does the loan summary say the same?",
+        expect_discrepancy=False, gold_refs=refs(d, 1), gold_facts=[num(r["rate"])],
+        seeded_field=None)
     return out
+
+
+def is_generated(row: dict) -> bool:
+    """Rows this script owns: flagged, or the original q031-q060 block written before the flag."""
+    n = int(row["id"][1:])
+    return bool(row.get("generated")) or FIRST_ID <= n < FIRST_ID + LEGACY_N
+
+
+def assign_ids(qs: list[dict], hand_written: list[dict]) -> None:
+    """First LEGACY_N keep q031..; the rest get ids after the highest id in the file."""
+    next_free = max([int(r["id"][1:]) for r in hand_written] + [FIRST_ID + LEGACY_N - 1]) + 1
+    for i, q in enumerate(qs):
+        if i < LEGACY_N:
+            q["id"] = f"q{FIRST_ID + i:03d}"
+        else:
+            q["id"] = f"q{next_free:03d}"
+            next_free += 1
 
 
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--write", action="store_true")
     args = ap.parse_args()
+    existing = [json.loads(ln) for ln in QUESTIONS.read_text(encoding="utf-8").splitlines()
+                if ln.strip()]
+    hand_written = [r for r in existing if not is_generated(r)]  # never touched by this script
     qs = build()
-    lines = [json.dumps(q) for q in qs]
+    assign_ids(qs, hand_written)
     if not args.write:
-        print("\n".join(lines))
+        print("\n".join(json.dumps(q) for q in qs))
         return
-    kept = [ln for ln in QUESTIONS.read_text().splitlines()
-            if ln.strip() and int(json.loads(ln)["id"][1:]) < FIRST_ID]
-    QUESTIONS.write_text("\n".join(kept + lines) + "\n")
-    print(f"Wrote {len(kept)} existing + {len(lines)} generated questions to {QUESTIONS}")
+    rows = sorted(hand_written + qs, key=lambda r: int(r["id"][1:]))
+    QUESTIONS.write_text("\n".join(json.dumps(r, ensure_ascii=False) for r in rows) + "\n",
+                         encoding="utf-8")
+    print(f"Wrote {len(hand_written)} hand-written + {len(qs)} generated questions to {QUESTIONS}")
 
 
 if __name__ == "__main__":
