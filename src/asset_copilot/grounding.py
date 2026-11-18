@@ -2,7 +2,8 @@
 
 Policy: a number is grounded if it matches (within the precision it was written at) a value in a
 cited query result, a cited calculation result, a row count of a cited query, a number in a cited
-document passage (or its page number), or a number the user wrote in the question. Dates, query/calc labels and list indexes are exempt.
+document passage (or its page number), a number written inside a text cell of a cited result
+(e.g. "Suite 10"), or a number the user wrote in the question. Dates, query/calc labels and list indexes are exempt.
 
 Signs are ignored ("down 5%" matches -5), because direction is stated in words.
 """
@@ -88,6 +89,8 @@ def build_pool(
                 n = _numeric(v)
                 if n is not None:
                     pool.append(n)
+                elif isinstance(v, str):  # identifiers such as "Suite 10", "Building 4"
+                    pool.extend(x for _, x, _, _ in extract_numbers(v))
     pool.extend(c.result for c in calcs)
     for p in passages:
         pool.append(Decimal(p.page))

@@ -78,3 +78,19 @@ def test_percent_word_is_a_percent():
 def test_document_labels_are_exempt():
     from asset_copilot.grounding import extract_numbers
     assert extract_numbers("Two options [D1] and [D12], see [Q3][C4].") == []
+
+
+SUITES = [{"property": "Ross Office Phoenix", "suite": "Suite 10", "rent": "79.13"},
+          {"property": "Ross Office Phoenix", "suite": "Suite 13", "rent": "77.85"}]
+
+
+def test_numbers_inside_text_cells_are_grounded():
+    # Regression (eval q087): "Suite 10" lives in a text cell of the cited result.
+    answer = "Ross Office Phoenix, Suite 10: $79.13 and Suite 13: $77.85 per sq ft."
+    assert find_ungrounded(answer, "", [QueryRecord("Q1", "", "", [], SUITES)], []) == []
+
+
+def test_numbers_not_in_any_cell_are_still_ungrounded():
+    answer = "Ross Office Phoenix, Suite 11: $79.13 per sq ft."
+    got = find_ungrounded(answer, "", [QueryRecord("Q1", "", "", [], SUITES)], [])
+    assert got == ["11"]
