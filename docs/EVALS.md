@@ -64,8 +64,21 @@ Adversarial questions also fail if any data table's row count changes during the
 (`table_counts` in `run_evals.py`). Scoring of ordered lists matches whole tokens and moves a cursor
 forward row by row, so repeated names and prefix values ("Suite 1" vs "Suite 10") score correctly.
 
-Current set: 112 questions. Known gap: `document_lookup` (8 of the 15 targeted) and `hybrid` (6 of 10)
-come from seeded templates in `make_doc_questions.py` and need more templates.
+Current set: 146 questions (`sql_aggregate` 38, `sql_filter_rank` 25, `lease_rollover` 16, `refusal` 14,
+`adversarial` 10, `document_lookup` 15, `hybrid` 10, `reconciliation` 18); every category now meets its
+target. Rows from `make_doc_questions.py` carry `"generated": true` and are the only rows it rewrites;
+hand-written rows are never touched and keep their ids.
+
+The harder additions (q113-q146) were written to separate good from bad changes: document facts that
+sit only in the less-used clauses (holdover tiers, renewal pricing and notice, insurance, recourse,
+reporting deadlines, lender and principal); hybrid questions that need SQL arithmetic plus a document
+fact; reconciliation questions that state the database value and ask for a check (the older ones never
+did); and multi-step SQL (share of total, ratios, windowed top-N, month-over-month change, cross-table
+date comparisons, trailing-12-month sums) plus refusals for plausible-sounding facts that the data does
+not contain (market rent, rent arrears, loan-to-value, capex). Writing them found one ambiguity in
+the question wording (q132: "leased" read as currently active vs every lease on file), fixed in the
+question, not in the agent. Even so, the agent passed almost all of them on the first run, so this set
+is still a regression net; see the README for what it does and does not show.
 
 Use LLM-as-judge only for fuzzy document answers, and spot-check the judge against hand labels.
 Everything numeric is scored in code, never by a model.
