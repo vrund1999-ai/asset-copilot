@@ -161,6 +161,24 @@ Done when:
 - [x] `docs/STAKEHOLDER_MEMO.md`: one page for a head of asset management (problem, outcome metrics, risks, rollout plan), no jargon
 - [ ] Optional: deploy a hosted demo (synthetic data only)
 
+## M6. Evals that discriminate (next)
+
+The 146-question set is author-written and at 100% in every category, so it catches regressions but
+cannot tell a good change from a bad one. Goal: evidence that comes from outside the author and
+shows run-to-run noise.
+
+- [ ] Questions not written by the author: run the app with at least 2 other people, collect thumbs-down
+      ratings and corrections, export with `python evals/feedback_report.py --export`, and add each item
+      with a verified gold answer (new `source` field on the question so these stay identifiable)
+- [ ] Repeated runs: run the full set at least 5 times per configuration and report per-question
+      pass rate and per-category spread, so a one-off flip is not mistaken for a real change
+- [ ] Add a failure-seeking pass: a second model or a person writes questions meant to break the agent;
+      keep only those with a verified gold answer
+- [ ] README Results shows spread across runs (not a single score) and the share of questions written by
+      someone other than the author
+- [ ] A change is only claimed as an improvement if it beats the run-to-run spread (document the rule in
+      `docs/EVALS.md`)
+
 ## Non-goals
 
 - Real or confidential data, authentication/multi-tenancy, a fancy frontend, fine-tuning.
