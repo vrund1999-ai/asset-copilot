@@ -185,8 +185,9 @@ The Streamlit UI (`app/streamlit_app.py`, `app/pages/1_Variance_Report.py`) was 
 the backend works. Goal: an interface a portfolio manager would choose to use, still in Streamlit
 unless a concrete need says otherwise. Scope the design first; do not start by restyling.
 
-- [ ] Short design brief: who uses it, the three or four tasks it must make fast (ask a question,
-      check a source, review a variance flag, leave a correction), and what is out of scope
+- [x] Short design brief: [`docs/UI_BRIEF.md`](UI_BRIEF.md) (audiences, tasks, scope, slices)
+- [ ] Landing page, navigation shell and a View toggle (Asset manager / Analyst / Reviewer) that changes
+      presentation only, never the answer
 - [ ] Answers lead with the result; citations, SQL and document excerpts are one click away but not in the way
 - [ ] Clear distinct states for answered, refused, ungrounded, loading and API-down (screenshots of each)
 - [ ] Variance report: sortable tables, flagged items first, drill from a flag to the underlying month and property
