@@ -157,8 +157,8 @@ Done when:
 
 ## M5. Packaging and communication (week 5)
 
-- [ ] README: architecture diagram, results, governance section, limitations, demo GIF/video
-- [ ] `docs/STAKEHOLDER_MEMO.md`: one page for a head of asset management (problem, outcome metrics, risks, rollout plan), no jargon
+- [x] README: architecture diagram, results, governance section, limitations, demo GIF/video
+- [x] `docs/STAKEHOLDER_MEMO.md`: one page for a head of asset management (problem, outcome metrics, risks, rollout plan), no jargon
 - [ ] Optional: deploy a hosted demo (synthetic data only)
 
 ## Non-goals

@@ -23,7 +23,7 @@ accuracy and governance matter.
 | Agents with LLMs, SQL, APIs | Tool-use agent (M1), FastAPI service |
 | Accuracy and reliability | Deterministic calc, cited answers, discrepancy detection, eval harness (M4) |
 | Secure, governed, tested | SQL guard, read-only role, audit log, unit tests, CI |
-| Business impact | Variance report workflow with measurable time savings (M3) |
+| Business impact | Variance report workflow with numbers verified against independent SQL (M3); time savings are not measured and would need a pilot |
 | Communicating to stakeholders | Stakeholder memo, results tables, clear README (M5) |
 
 ## Implications for priorities
