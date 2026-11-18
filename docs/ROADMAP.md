@@ -179,6 +179,23 @@ shows run-to-run noise.
 - [ ] A change is only claimed as an improvement if it beats the run-to-run spread (document the rule in
       `docs/EVALS.md`)
 
+## M7. UI revamp (after M6)
+
+The Streamlit UI (`app/streamlit_app.py`, `app/pages/1_Variance_Report.py`) was built to show that
+the backend works. Goal: an interface a portfolio manager would choose to use, still in Streamlit
+unless a concrete need says otherwise. Scope the design first; do not start by restyling.
+
+- [ ] Short design brief: who uses it, the three or four tasks it must make fast (ask a question,
+      check a source, review a variance flag, leave a correction), and what is out of scope
+- [ ] Answers lead with the result; citations, SQL and document excerpts are one click away but not in the way
+- [ ] Clear distinct states for answered, refused, ungrounded, loading and API-down (screenshots of each)
+- [ ] Variance report: sortable tables, flagged items first, drill from a flag to the underlying month and property
+- [ ] Document citations show the page text that supports the claim, not only a title and page number
+- [ ] Feedback flow takes one click for a rating and does not block reading the answer
+- [ ] Keyboard and screen-reader basics: labelled controls, sufficient contrast, no information by colour alone
+- [ ] Before/after screenshots in `docs/screenshots/`, README and demo GIF refreshed
+- [ ] Usability check with at least 2 people other than the author (this also feeds the M6 feedback items)
+
 ## Non-goals
 
-- Real or confidential data, authentication/multi-tenancy, a fancy frontend, fine-tuning.
+- Real or confidential data, authentication/multi-tenancy, a custom JavaScript frontend (the Streamlit UI is revamped in M7), fine-tuning.
