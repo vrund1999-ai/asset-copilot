@@ -49,9 +49,19 @@ def source_card(c: dict) -> dict:
                 "code": c["reference"], "language": "sql"}
     if kind == "document":
         return {"title": c["reference"], "detail": f"Document passage {label}".strip(),
-                "code": None, "language": None}
+                "code": None, "language": None, "excerpt": c.get("excerpt")}
     return {"title": f"Calculation {label}".strip(), "detail": "Computed by the calculator tool",
             "code": c["reference"], "language": "text"}
+
+
+MARKDOWN_CHARS = set("\\`*_{}[]<>#|~$")
+
+
+def quote(text: str) -> str:
+    """Block-quote a passage. Markdown characters in the document text are escaped so a lease
+    clause cannot change how the page renders."""
+    escaped = "".join("\\" + ch if ch in MARKDOWN_CHARS else ch for ch in text)
+    return "\n".join("> " + line if line.strip() else ">" for line in escaped.splitlines())
 
 
 def render_sources(citations: list[dict]) -> None:
@@ -64,6 +74,11 @@ def render_sources(citations: list[dict]) -> None:
                 st.caption(card["detail"])
                 if card["code"]:
                     st.code(card["code"], language=card["language"])
+                if card.get("excerpt"):
+                    st.markdown(quote(card["excerpt"]))
+                    st.caption("Text of the passage that was cited for this answer.")
+                elif card["language"] is None:
+                    st.caption("The passage text was not returned for this source.")
 
 
 def render_turn(turn: dict, key: int) -> None:

@@ -122,11 +122,21 @@ def _handle_submit(args: dict, ctx: RunContext, question: str) -> tuple[_Final |
                   grounded=not ungrounded), None
 
 
+EXCERPT_MAX_CHARS = 1500
+
+
+def _excerpt(text: str) -> str:
+    """The passage the model was shown, trimmed so a response cannot balloon."""
+    text = text.strip()
+    return text if len(text) <= EXCERPT_MAX_CHARS else text[:EXCERPT_MAX_CHARS].rstrip() + "..."
+
+
 def _citations(final: _Final, ctx: RunContext) -> list[Citation]:
     cites = [Citation(kind="sql", reference=ctx.queries[q].sql, label=q) for q in final.query_ids]
     for d in final.doc_ids:
         rec = ctx.passages[d]
-        cites.append(Citation(kind="document", label=d, reference=f"{rec.title} p.{rec.page}"))
+        cites.append(Citation(kind="document", label=d, reference=f"{rec.title} p.{rec.page}",
+                              excerpt=_excerpt(rec.content)))
     for c in final.calc_ids:
         rec = ctx.calcs[c]
         cites.append(Citation(kind="calculation", label=c,

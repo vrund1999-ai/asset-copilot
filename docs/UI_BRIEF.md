@@ -79,5 +79,5 @@ any change to agent or governance behaviour.
 2. Ask page: result-first answers and source cards per view, state handling, one-click feedback.
    **Done.** `app/answer_view.py` renders a turn; `ui_common.quick_feedback` saves a rating on one click.
 3. Variance report: flagged first, sortable tables, drill-down. **Done.** `app/variance_view.py` builds numeric rows.
-4. Document citations show the supporting page text.
+4. Document citations show the supporting page text. **Done.** `Citation.excerpt` (API) shown in the source card.
 5. Accessibility pass, refreshed screenshots and demo GIF, usability check.

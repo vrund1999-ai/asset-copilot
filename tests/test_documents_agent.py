@@ -241,3 +241,34 @@ def test_tool_schema_declares_search_and_doc_ids():
     names = {t["name"]: t for t in tools.TOOLS}
     assert "search_documents" in names
     assert "doc_ids" in names["submit_answer"]["input_schema"]["properties"]
+
+
+def test_document_citation_carries_the_passage_text(search_stub, fake_db, audit_log):
+    client = FakeClient(
+        response(search()),
+        response(submit_doc("Acme has 2 renewal options of 5 years each [D1].")),
+    )
+    out = run(client)
+    cite = out.citations[0]
+    assert cite.excerpt == RENEWAL["content"].strip()
+    assert "9 months written notice" in cite.excerpt
+
+
+def test_long_passage_excerpt_is_trimmed(search_stub, fake_db, audit_log):
+    from asset_copilot.agent import EXCERPT_MAX_CHARS, _excerpt
+
+    assert _excerpt("short  \n") == "short"
+    long = _excerpt("x" * (EXCERPT_MAX_CHARS + 500))
+    assert len(long) == EXCERPT_MAX_CHARS + 3 and long.endswith("...")
+
+
+def test_sql_citation_has_no_excerpt(search_stub, fake_db, audit_log):
+    fake_db.rows = [{"renewal_options": 2}]
+    client = FakeClient(
+        response(tool_use("t1", "run_sql", sql="SELECT renewal_options FROM leases", purpose="x")),
+        response(search()),
+        response(submit_doc("2 options [Q1][D1].", query_ids=["Q1"])),
+    )
+    out = run(client)
+    assert out.citations[0].kind == "sql" and out.citations[0].excerpt is None
+    assert out.citations[1].excerpt

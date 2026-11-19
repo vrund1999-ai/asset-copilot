@@ -193,7 +193,8 @@ unless a concrete need says otherwise. Scope the design first; do not start by r
 - [ ] Clear distinct states for answered, refused, ungrounded, loading and API-down (screenshots of each)
       (slice 2 built all five and tests them; live screenshots so far: answered, refused, API-down)
 - [x] Variance report: sortable tables, flagged items first, drill from a flag to the underlying month and property (slice 3)
-- [ ] Document citations show the page text that supports the claim, not only a title and page number
+- [x] Document citations show the page text that supports the claim, not only a title and page number (slice 4;
+      the whole cited passage is shown, not a highlighted sentence)
 - [x] Feedback flow takes one click for a rating and does not block reading the answer (slice 2)
 - [ ] Keyboard and screen-reader basics: labelled controls, sufficient contrast, no information by colour alone
 - [ ] Before/after screenshots in `docs/screenshots/`, README and demo GIF refreshed
