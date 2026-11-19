@@ -188,11 +188,13 @@ unless a concrete need says otherwise. Scope the design first; do not start by r
 - [x] Short design brief: [`docs/UI_BRIEF.md`](UI_BRIEF.md) (audiences, tasks, scope, slices)
 - [x] Landing page, navigation shell and a View toggle (Asset manager / Analyst / Reviewer) that changes
       presentation only, never the answer (slice 1; includes a read-only `GET /portfolio/summary`)
-- [ ] Answers lead with the result; citations, SQL and document excerpts are one click away but not in the way
+- [x] Answers lead with the result; citations and SQL are one click away but not in the way (slice 2;
+      document page text comes with the document-citation item below)
 - [ ] Clear distinct states for answered, refused, ungrounded, loading and API-down (screenshots of each)
+      (slice 2 built all five and tests them; live screenshots so far: answered, refused, API-down)
 - [ ] Variance report: sortable tables, flagged items first, drill from a flag to the underlying month and property
 - [ ] Document citations show the page text that supports the claim, not only a title and page number
-- [ ] Feedback flow takes one click for a rating and does not block reading the answer
+- [x] Feedback flow takes one click for a rating and does not block reading the answer (slice 2)
 - [ ] Keyboard and screen-reader basics: labelled controls, sufficient contrast, no information by colour alone
 - [ ] Before/after screenshots in `docs/screenshots/`, README and demo GIF refreshed
 - [ ] Usability check with at least 2 people other than the author (this also feeds the M6 feedback items)

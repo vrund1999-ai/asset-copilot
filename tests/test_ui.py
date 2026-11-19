@@ -11,6 +11,7 @@ APP = Path(__file__).parent.parent / "app"
 sys.path.insert(0, str(APP))  # the app imports `ui_common` as a top-level module
 
 import ui_common
+from answer_view import source_card, tables_in, turn_state
 
 SUMMARY = {
     "month": "2026-06-01", "n_properties": 60, "n_active_leases": 459, "n_expiring_12m": 211,
@@ -129,3 +130,124 @@ def test_unknown_view_falls_back_to_default():
 
     at = AppTest.from_function(app, default_timeout=20).run()
     assert at.markdown[0].value == "Asset manager"
+
+
+# ---- Ask page: states, source cards, one-click feedback --------------------------------------
+
+def turn_app():
+    import streamlit as st
+    from answer_view import render_turn
+
+    st.session_state.setdefault("_view", st.session_state.get("want_view", "Asset manager"))
+    render_turn(st.session_state["turn"], 0)
+
+
+def render(turn, view="Asset manager", posts=None, monkeypatch=None):
+    if monkeypatch is not None:
+        def post(url, **kw):
+            posts.append(kw["json"])
+            return httpx.Response(200, json={"status": "saved"}, request=httpx.Request("POST", url))
+
+        monkeypatch.setattr(httpx, "post", post)
+    at = AppTest.from_function(turn_app, default_timeout=20)
+    at.session_state["turn"] = turn
+    at.session_state["_view"] = view
+    return at.run()
+
+
+SQL = "SELECT city, count(*) FROM properties p JOIN leases l ON l.property_id = p.id GROUP BY city"
+ANSWERED = {"content": "Austin has 9 properties.", "status": "answered", "grounded": True,
+            "question": "q", "steps": 3, "session_id": "abcdef123456",
+            "citations": [{"kind": "sql", "label": "Q1", "reference": SQL},
+                          {"kind": "document", "label": "D1", "reference": "Lease 12 p.2"},
+                          {"kind": "calculation", "label": "C1", "reference": "C1: 2 + 2 = 4"}]}
+
+
+def test_turn_state_covers_every_status():
+    assert turn_state(ANSWERED) == "answered"
+    assert turn_state({**ANSWERED, "grounded": False}) == "ungrounded"
+    assert turn_state({"status": "cannot_determine"}) == "cannot_determine"
+    assert turn_state({"status": "failed"}) == "failed"
+    assert turn_state({"status": "error"}) == "error"
+
+
+def test_tables_in_and_source_cards():
+    assert tables_in(SQL) == ["properties", "leases"]
+    assert tables_in("select 1") == []
+    sql, doc, calc = (source_card(c) for c in ANSWERED["citations"])
+    assert sql["title"] == "Database query Q1" and sql["detail"] == "Read from: properties, leases"
+    assert sql["language"] == "sql" and sql["code"] == SQL
+    assert doc["title"] == "Lease 12 p.2" and doc["code"] is None
+    assert calc["title"] == "Calculation C1" and calc["code"] == "C1: 2 + 2 = 4"
+
+
+def test_answered_turn_leads_with_the_answer_and_collapses_sources():
+    at = render(ANSWERED)
+    assert not at.exception
+    assert at.markdown[0].value == "Austin has 9 properties."
+    assert any("Every number traced" in c.value for c in at.caption)
+    assert not at.warning and not at.error
+    assert at.expander[0].label == "Sources (3)" and not at.expander[0].proto.expanded
+
+
+def test_analyst_view_opens_sources_and_adds_run_details():
+    at = render(ANSWERED, view="Analyst")
+    assert at.expander[0].proto.expanded
+    assert any("3 model calls · session abcdef12" in c.value for c in at.caption)
+    assert not any("Checks applied" in c.value for c in at.caption)
+
+
+def test_reviewer_view_explains_the_checks():
+    at = render(ANSWERED, view="Reviewer")
+    assert any("Checks applied" in c.value and "abcdef12" in c.value for c in at.caption)
+
+
+def test_ungrounded_turn_warns_before_the_text():
+    at = render({**ANSWERED, "grounded": False})
+    assert at.warning and "Not fully verified" in at.warning[0].value
+    assert not any("Every number traced" in c.value for c in at.caption)
+
+
+def test_refused_failed_and_error_turns_are_distinct():
+    refused = render({"content": "I can't determine that.", "status": "cannot_determine"})
+    assert refused.info and not refused.error and not refused.warning
+    assert not refused.expander  # no sources, nothing to rate-limit the reader
+    failed = render({"content": "Gave up after 8 steps.", "status": "failed"})
+    assert failed.error and "could not finish" in failed.error[0].value
+    assert not [b for b in failed.button]  # nothing to rate
+    err = render({"content": "Could not reach the API", "status": "error", "question": "q"})
+    assert err.error and "did not respond" in err.error[0].value
+    assert [b.label for b in err.button] == ["Try again"]
+
+
+def test_thumbs_down_saves_on_one_click_then_takes_an_optional_note(monkeypatch):
+    posts: list[dict] = []
+    at = render(ANSWERED, posts=posts, monkeypatch=monkeypatch)
+    assert [b.label for b in at.button] == ["👍 Helpful", "👎 Not helpful"]
+    at.button[1].click().run()
+    assert len(posts) == 1 and posts[0]["rating"] == -1 and posts[0]["correction"] is None
+    assert [c.value for c in at.caption if "rating was saved" in c.value]
+    at.text_input[0].set_value("Austin has 10").run()
+    at.button[0].click().run()
+    assert len(posts) == 2 and posts[1]["correction"] == "Austin has 10" and posts[1]["rating"] == -1
+    assert any("feedback was saved" in c.value for c in at.caption)
+    assert not at.button  # done: nothing left to click
+
+
+def test_thumbs_up_is_a_single_click(monkeypatch):
+    posts: list[dict] = []
+    at = render(ANSWERED, posts=posts, monkeypatch=monkeypatch)
+    at.button[0].click().run()
+    assert [p["rating"] for p in posts] == [1]
+    assert not any("What was wrong" in c.value for c in at.caption)
+
+
+def test_feedback_failure_is_reported_and_can_be_retried(monkeypatch):
+    def boom(url, **_):
+        raise httpx.ConnectError("refused", request=httpx.Request("POST", url))
+
+    monkeypatch.setattr(httpx, "post", boom)
+    at = render(ANSWERED)
+    at.button[0].click().run()
+    assert at.error and "Could not reach the API" in at.error[0].value
+    assert [b.label for b in at.button] == ["👍 Helpful", "👎 Not helpful"]
