@@ -12,6 +12,7 @@ sys.path.insert(0, str(APP))  # the app imports `ui_common` as a top-level modul
 
 import ui_common
 from answer_view import source_card, tables_in, turn_state
+from variance_view import driver_rows, flag_rows, totals_rows, trend_rows
 
 SUMMARY = {
     "month": "2026-06-01", "n_properties": 60, "n_active_leases": 459, "n_expiring_12m": 211,
@@ -251,3 +252,105 @@ def test_feedback_failure_is_reported_and_can_be_retried(monkeypatch):
     at.button[0].click().run()
     assert at.error and "Could not reach the API" in at.error[0].value
     assert [b.label for b in at.button] == ["👍 Helpful", "👎 Not helpful"]
+
+
+# ---- Variance report: flagged first, numeric sortable rows, drill-down -----------------------
+
+def _line(line, actual, budget, variance, pct, flagged=False):
+    return {"line": line, "actual": actual, "budget": budget, "variance": variance,
+            "variance_pct": pct, "favorable": variance.startswith("-") is False, "flagged": flagged}
+
+
+def _totals(scale=1):
+    return [_line("revenue", "1000.00", "900.00", "100.00", "11.11", True),
+            _line("opex", "400.00", "450.00", "-50.00", "-11.11"),
+            _line("noi", "600.00", "450.00", "150.00", "33.33", True)]
+
+
+REPORT = {
+    "scope": "portfolio", "property_id": None, "property_name": None, "month": "2026-06-01",
+    "n_properties": 2, "totals": _totals(), "flag_pct": "10", "flag_min_usd": "25000",
+    "drivers": [{"property_id": 7, "name": "Harbor Plaza", "asset_type": "office",
+                 "noi_contribution_pct": "60.00", "lines": _totals()}],
+    "flags": [{"property_id": 8, "name": "Elm Court", "line": "opex", "variance": "-30000",
+               "variance_pct": "-12.5"},
+              {"property_id": 7, "name": "Harbor Plaza", "line": "revenue", "variance": "90000.50",
+               "variance_pct": "15"},
+              {"property_id": None, "name": "Portfolio", "line": "noi", "variance": "5000",
+               "variance_pct": "11"}],
+    "commentary": "NOI is ahead of budget.", "commentary_source": "llm", "commentary_note": None,
+}
+
+
+def test_variance_rows_are_numeric_and_flags_sorted_by_size():
+    flags = flag_rows(REPORT)
+    assert [f["Item"] for f in flags] == ["Harbor Plaza", "Elm Court", "Portfolio"]
+    assert flags[0]["Variance ($)"] == 90000.5 and isinstance(flags[0]["Variance (%)"], float)
+    t = totals_rows(REPORT)
+    assert [r["Result"] for r in t] == ["Favorable", "Unfavorable", "Favorable"]
+    assert driver_rows(REPORT)[0]["NOI variance ($)"] == 150.0
+    tr = trend_rows([("2026-06", REPORT)])
+    assert tr[0]["NOI ($)"] == 600.0 and tr[0]["NOI vs budget (%)"] == 33.33
+
+
+def variance_page(monkeypatch, report=REPORT, view="Asset manager"):
+    def get(url, **_):
+        req = httpx.Request("GET", url)
+        return httpx.Response(200, request=req, json={
+            "months": ["2026-06-01", "2026-05-01", "2026-04-01"],
+            "properties": [{"property_id": 7, "name": "Harbor Plaza"},
+                           {"property_id": 8, "name": "Elm Court"}]})
+
+    def post(url, **kw):
+        rep = dict(report)
+        if kw["json"].get("property_id"):
+            rep = {**rep, "scope": "property", "property_id": kw["json"]["property_id"]}
+        return httpx.Response(200, json=rep, request=httpx.Request("POST", url))
+
+    monkeypatch.setattr(httpx, "get", get)
+    monkeypatch.setattr(httpx, "post", post)
+    ui_common.api_status.clear()
+    at = AppTest.from_file(str(APP / "screens" / "variance_report.py"), default_timeout=30)
+    at.session_state["_view"] = view
+    return at.run()
+
+
+def test_variance_page_orders_flags_then_commentary_then_tables(monkeypatch):
+    at = variance_page(monkeypatch)
+    at.button[0].click().run()
+    assert not at.exception
+    heads = [h.value for h in at.subheader]
+    assert heads[1:] == ["Flagged for review (3)", "Commentary"]
+    assert [e.label for e in at.expander] == ["Full tables"] and not at.expander[0].proto.expanded
+
+
+def test_variance_analyst_view_opens_full_tables(monkeypatch):
+    at = variance_page(monkeypatch, view="Analyst")
+    at.button[0].click().run()
+    assert at.expander[0].proto.expanded
+
+
+def test_variance_reviewer_sees_commentary_check(monkeypatch):
+    at = variance_page(monkeypatch, view="Reviewer")
+    at.button[0].click().run()
+    assert any("Check applied" in c.value for c in at.caption)
+
+
+def test_variance_no_flags_shows_clear_state(monkeypatch):
+    at = variance_page(monkeypatch, report={**REPORT, "flags": []})
+    at.button[0].click().run()
+    assert at.success and "No items exceed" in at.success[0].value
+    assert any(h.value == "Flagged for review (0)" for h in at.subheader)
+
+
+def test_variance_open_property_callback_sets_pickers(monkeypatch):
+    at = variance_page(monkeypatch)
+    at.button[0].click().run()
+    assert at.selectbox[0].value == "Entire portfolio"
+    at.session_state["scope_sel"] = "Harbor Plaza"
+    at.session_state["month_sel"] = "2026-05-01"
+    at.session_state["auto_generate"] = True
+    at.run()
+    assert not at.exception
+    assert at.session_state["variance"]["scope"] == "Harbor Plaza"
+    assert at.session_state["variance"]["month"] == "2026-05-01"
