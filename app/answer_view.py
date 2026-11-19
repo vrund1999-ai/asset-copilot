@@ -73,7 +73,7 @@ def render_sources(citations: list[dict]) -> None:
                 st.markdown(f"**{card['title']}**")
                 st.caption(card["detail"])
                 if card["code"]:
-                    st.code(card["code"], language=card["language"])
+                    st.code(card["code"], language=card["language"], wrap_lines=True)
                 if card.get("excerpt"):
                     st.markdown(quote(card["excerpt"]))
                     st.caption("Text of the passage that was cited for this answer.")

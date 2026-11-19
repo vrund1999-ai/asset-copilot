@@ -75,7 +75,7 @@ every month.
 
 | Question and sources | Variance report |
 |---|---|
-| ![Answer flagging a discrepancy, with D/Q citations](docs/screenshots/chat_answer.png) | ![Variance report with totals, drivers and flags](docs/screenshots/variance_report.png) |
+| ![Answer first, then source cards with the cited document passage](docs/screenshots/ui_ask_document_excerpt.png) | ![Variance report with flagged items first](docs/screenshots/ui_variance_flagged_first.png) |
 
 ## Quickstart
 
@@ -171,4 +171,7 @@ questions from outside the author, ideally real thumbs-down feedback
 - [x] Variance report workflow
 - [x] Eval harness with measured accuracy
 - [x] README, demo GIF and stakeholder memo
+- [ ] M6: evals that discriminate (outside questions, repeated runs)
+- [ ] M7: UI revamp. Built and audited with an automated accessibility check; a usability check with
+      at least 2 other people is still open
 - [ ] Optional: hosted demo

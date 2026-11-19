@@ -27,7 +27,7 @@ def usd(x: str) -> str:
     return f"-${abs(d):,.0f}" if d < 0 else f"${d:,.0f}"
 
 
-st.subheader("Portfolio snapshot")
+st.header("Portfolio snapshot")
 api_ok, api_detail = api_status()
 snap, snap_error = None, None
 if not api_ok:  # never show a cached snapshot as if it were live
@@ -57,7 +57,7 @@ else:
                    delta_color="inverse" if ln["line"] == "opex" else "normal")
     st.caption(f"{snap['n_expiring_12m']:,} active leases expire within 12 months.")
 
-st.subheader("Try a question")
+st.header("Try a question")
 cols = st.columns(2)
 for i, q in enumerate(SAMPLE_QUESTIONS):
     if cols[i % 2].button(q, key=f"sample_{i}", width="stretch"):
@@ -71,7 +71,7 @@ with right:
     st.page_link("screens/variance_report.py", label="Open the variance report", icon="📊")
 
 if current_view() == "Reviewer":
-    st.subheader("How answers are checked")
+    st.header("How answers are checked")
     CHECKS = [
         ("**Read-only by construction.** One SELECT at a time, on an approved list of tables, "
          "through a database role that cannot write."),
