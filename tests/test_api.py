@@ -32,7 +32,7 @@ def test_ask_returns_agent_response(client, monkeypatch):
     assert r.status_code == 200
     body = r.json()
     assert body["answer"].startswith("There are 60") and body["status"] == "answered"
-    assert body["citations"] == [{"kind": "sql", "reference": "SELECT 1", "label": "Q1"}]
+    assert body["citations"] == [{"kind": "sql", "reference": "SELECT 1", "label": "Q1", "excerpt": None}]
     assert body["grounded"] is True and body["session_id"] == "abc"
     assert seen == {"question": "How many properties?", "session_id": "abc"}
 

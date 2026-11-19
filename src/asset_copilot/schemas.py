@@ -5,6 +5,7 @@ class Citation(BaseModel):
     kind: str  # "sql" | "document" | "calculation"
     reference: str  # executed query text, "<doc title> p.<n>", or "<id>: <expr> = <result>"
     label: str | None = None  # e.g. "Q1", as referenced in the answer text
+    excerpt: str | None = None  # document citations: the retrieved passage text (capped)
 
 
 class AskRequest(BaseModel):

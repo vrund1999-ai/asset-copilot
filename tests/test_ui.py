@@ -354,3 +354,35 @@ def test_variance_open_property_callback_sets_pickers(monkeypatch):
     assert not at.exception
     assert at.session_state["variance"]["scope"] == "Harbor Plaza"
     assert at.session_state["variance"]["month"] == "2026-05-01"
+
+
+# ---- Document citations show the supporting passage ------------------------------------------
+
+DOC = {"kind": "document", "label": "D1", "reference": "Lease Abstract p.2",
+       "excerpt": "## Renewal Options\n\n2 option(s) at 95% of *fair market* rent."}
+
+
+def test_document_card_carries_excerpt():
+    card = source_card(DOC)
+    assert card["title"] == "Lease Abstract p.2" and card["excerpt"].startswith("## Renewal")
+    assert source_card({**DOC, "excerpt": None})["excerpt"] is None
+
+
+def test_quote_escapes_markdown_and_keeps_blank_lines():
+    from answer_view import quote
+
+    out = quote("## Heading\n\n*bold* <b>x</b> $5")
+    assert out.splitlines() == ["> \\#\\# Heading", ">", "> \\*bold\\* \\<b\\>x\\</b\\> \\$5"]
+
+
+def test_document_source_shows_passage_text_in_the_expander():
+    turn = {**ANSWERED, "citations": [DOC]}
+    at = render(turn, view="Analyst")
+    assert not at.exception
+    assert any("fair market" in m.value for m in at.markdown)
+    assert any("passage that was cited" in c.value for c in at.caption)
+
+
+def test_document_source_without_excerpt_says_so():
+    at = render({**ANSWERED, "citations": [{**DOC, "excerpt": None}]}, view="Analyst")
+    assert any("passage text was not returned" in c.value for c in at.caption)
