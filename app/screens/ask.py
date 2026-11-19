@@ -1,44 +1,10 @@
 import httpx
 import streamlit as st
-from ui_common import API_URL, current_view, error_detail, feedback_form, session_id
+from answer_view import render_turn
+from ui_common import API_URL, error_detail, session_id
 
 st.title("Ask")
 st.caption("Ask questions about a synthetic CRE portfolio. Answers cite their sources.")
-
-
-def render(turn: dict, key: int) -> None:
-    """Render one assistant turn by status: answered / cannot_determine / failed / error."""
-    status = turn.get("status", "answered")
-    if status == "error":
-        st.error(turn["content"])
-        return
-    if status == "failed":
-        st.error(turn["content"])
-    elif status == "cannot_determine":
-        st.info(turn["content"])
-    else:
-        st.markdown(turn["content"])
-        if not turn.get("grounded", True):
-            st.warning(
-                "Some numbers in this answer could not be traced to a cited result. "
-                "Check the sources before relying on it."
-            )
-    citations = turn.get("citations", [])
-    if citations:
-        with st.expander(f"Sources ({len(citations)})", expanded=current_view() != "Asset manager"):
-            for c in citations:
-                label = f"**{c['label']}**" if c.get("label") else ""
-                if c["kind"] == "sql":
-                    st.markdown(f"{label} SQL")
-                    st.code(c["reference"], language="sql")
-                else:
-                    st.markdown(f"{label} {c['kind']}")
-                    st.code(c["reference"])
-    if turn.get("steps"):
-        calls = "model call" if turn["steps"] == 1 else "model calls"
-        st.caption(f"{turn['steps']} {calls} · session {turn.get('session_id', '')[:8]}")
-    if status != "failed":
-        feedback_form(f"chat_{key}", turn.get("question", ""), turn["content"])
 
 
 session_id()
@@ -50,7 +16,7 @@ for i, turn in enumerate(st.session_state.history):
         if turn["role"] == "user":
             st.markdown(turn["content"])
         else:
-            render(turn, i)
+            render_turn(turn, i)
 
 question = st.chat_input("e.g. Which assets have >20% lease rollover in the next 18 months?")
 question = question or st.session_state.pop("pending_question", None)  # sample question from Home
@@ -59,7 +25,7 @@ if question:
     with st.chat_message("user"):
         st.markdown(question)
     with st.chat_message("assistant"):
-        with st.spinner("Querying the portfolio..."):
+        with st.spinner("Working on it. Questions usually take 10 to 30 seconds."):
             try:
                 r = httpx.post(
                     f"{API_URL}/ask",
@@ -79,6 +45,7 @@ if question:
                     "session_id": data.get("session_id") or st.session_state.session_id,
                 }
             except httpx.HTTPError as e:
-                turn = {"role": "assistant", "content": error_detail(e), "status": "error"}
-        render(turn, len(st.session_state.history))
+                turn = {"role": "assistant", "content": error_detail(e), "status": "error",
+                        "question": question}
+        render_turn(turn, len(st.session_state.history))
     st.session_state.history.append(turn)

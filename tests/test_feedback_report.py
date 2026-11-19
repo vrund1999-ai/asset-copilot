@@ -3,7 +3,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "evals"))
 
-from feedback_report import candidates, kind_of, summarize
+from feedback_report import candidates, dedupe, kind_of, summarize
 
 ROWS = [
     {"question": "Which assets roll?", "answer": "A", "rating": 1, "correction": None},
@@ -37,3 +37,17 @@ def test_candidates_are_corrected_chat_negatives_only():
     c = candidates(summarize(ROWS))
     assert [x["question"] for x in c] == ["Total NOI?"]
     assert c[0]["reviewer_correction"] == "should be 5"
+
+
+def test_rating_then_correction_counts_once():
+    rows = [
+        {"session_id": "s1", "question": "Q", "answer": "A", "rating": -1, "correction": None},
+        {"session_id": "s1", "question": "Q", "answer": "A", "rating": -1, "correction": "fix"},
+        {"session_id": "s2", "question": "Q", "answer": "A", "rating": 1, "correction": None},
+        {"session_id": None, "question": "Q", "answer": "A", "rating": 1, "correction": None},
+        {"session_id": None, "question": "Q", "answer": "A", "rating": 1, "correction": None},
+    ]
+    kept = dedupe(rows)
+    assert len(kept) == 4 and kept[0]["correction"] == "fix"
+    s = summarize(rows)
+    assert s["by_kind"]["chat"]["down"] == 1 and s["with_correction"] == 1

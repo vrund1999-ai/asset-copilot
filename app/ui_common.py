@@ -55,6 +55,45 @@ def feedback_form(key: str, question: str, answer: str) -> None:
         st.rerun()
 
 
+def _save_feedback(question: str, answer: str, rating: int, correction: str | None):
+    try:
+        r = httpx.post(f"{API_URL}/feedback", timeout=30, json={
+            "session_id": session_id(), "question": question, "answer": answer,
+            "rating": rating, "correction": correction})
+        r.raise_for_status()
+    except httpx.HTTPError as e:
+        st.error(error_detail(e))
+        return False
+    return True
+
+
+def quick_feedback(key: str, question: str, answer: str) -> None:
+    """One click saves a rating; an optional note can follow without blocking anything.
+
+    The rating is stored on the first click. A note is a second row for the same answer, which
+    evals/feedback_report.py merges so it is not counted twice.
+    """
+    rated = st.session_state.get(f"rating_{key}")
+    if rated is None:
+        up_col, down_col, _ = st.columns([1, 1, 4])
+        for col, label, rating in ((up_col, "👍 Helpful", 1), (down_col, "👎 Not helpful", -1)):
+            if col.button(label, key=f"fb_{rating}_{key}") and _save_feedback(
+                    question, answer, rating, None):
+                st.session_state[f"rating_{key}"] = rating
+                st.rerun()
+        return
+    if st.session_state.get(f"note_sent_{key}"):
+        st.caption("Thanks, your feedback was saved.")
+        return
+    st.caption("Thanks, your rating was saved." + (
+        " What was wrong? A note helps us fix it." if rated == -1 else ""))
+    note = st.text_input("Add a note (optional)", key=f"fb_note_{key}")
+    if (st.button("Send note", key=f"fb_send_{key}") and note.strip()
+            and _save_feedback(question, answer, rated, note.strip())):
+        st.session_state[f"note_sent_{key}"] = True
+        st.rerun()
+
+
 VIEWS = ("Asset manager", "Analyst", "Reviewer")
 VIEW_HELP = {
     "Asset manager": "Plain-language answers first; sources one click away.",

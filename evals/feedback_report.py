@@ -16,8 +16,31 @@ def kind_of(question: str) -> str:
     return "variance" if (question or "").startswith(VARIANCE_PREFIX) else "chat"
 
 
+def dedupe(rows: list[dict]) -> list[dict]:
+    """Keep the latest row per (session_id, question, answer).
+
+    The UI saves a rating on the first click and a correction as a second row, so one person
+    rating one answer must not count twice. Rows without a session id are never merged.
+    """
+    latest: dict[tuple, dict] = {}
+    out: list[dict] = []
+    for r in rows:
+        sid = r.get("session_id")
+        if not sid:
+            out.append(r)
+            continue
+        key = (sid, r["question"], r["answer"])
+        if key in latest:
+            out[out.index(latest[key])] = r
+        else:
+            out.append(r)
+        latest[key] = r
+    return out
+
+
 def summarize(rows: list[dict]) -> dict:
     """rows: dicts with question, answer, rating (-1|1), correction. Pure, no DB."""
+    rows = dedupe(rows)
     by_kind: dict[str, Counter] = {"chat": Counter(), "variance": Counter()}
     negatives = []
     for r in rows:
@@ -49,7 +72,7 @@ def load_rows() -> list[dict]:
 
     with admin_engine().connect() as conn:
         return [dict(r._mapping) for r in conn.execute(text(
-            "SELECT question, answer, rating, correction FROM feedback ORDER BY id"))]
+            "SELECT session_id, question, answer, rating, correction FROM feedback ORDER BY id"))]
 
 
 def main() -> None:

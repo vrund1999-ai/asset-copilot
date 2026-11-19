@@ -77,6 +77,7 @@ any change to agent or governance behaviour.
 1. Landing page, navigation shell, View toggle. **Done.** Layout: `app/streamlit_app.py` (entry,
    sidebar, navigation), `app/screens/` (home, ask, variance_report), `.streamlit/config.toml` (theme).
 2. Ask page: result-first answers and source cards per view, state handling, one-click feedback.
+   **Done.** `app/answer_view.py` renders a turn; `ui_common.quick_feedback` saves a rating on one click.
 3. Variance report: flagged first, sortable tables, drill-down.
 4. Document citations show the supporting page text.
 5. Accessibility pass, refreshed screenshots and demo GIF, usability check.
