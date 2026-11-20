@@ -241,9 +241,10 @@ def main():
         s.done()
 
         # 7. Close
-        s = Step(15)
         click(page, page.get_by_test_id("stSidebar").get_by_text("Home", exact=True))
         page.wait_for_selector("text=Items flagged for review", timeout=30000)
+        page.wait_for_timeout(2500)  # let the snapshot finish loading before the closing line
+        s = Step(15)
         move(page, W / 2, 380, 20)
         s.done(1.5)
         total = now()
