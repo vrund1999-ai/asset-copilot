@@ -16,7 +16,7 @@ for k, (i, start) in enumerate(cues, start=1):
     ms = int((start - trim) * 1000)
     parts.append(f"[{k}:a]adelay={ms}|{ms},volume=1.0[a{k}]")
 mix = "".join(f"[a{k}]" for k in range(1, len(cues) + 1))
-parts.append(f"{mix}amix=inputs={len(cues)}:normalize=0[aout]")
+parts.append(f"{mix}amix=inputs={len(cues)}:normalize=0,alimiter=limit=0.95[aout]")
 cmd += ["-filter_complex", ";".join(parts), "-map", "0:v", "-map", "[aout]",
         "-c:v", "libx264", "-crf", "27", "-preset", "slow", "-pix_fmt", "yuv420p", "-r", "25",
         "-c:a", "aac", "-b:a", "96k", "-ar", "44100", "-movflags", "+faststart", "-shortest", str(out)]

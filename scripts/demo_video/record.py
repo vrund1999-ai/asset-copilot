@@ -101,6 +101,20 @@ def type_question(page, text):
     page.keyboard.press("Enter")
 
 
+def narrate_while(page, idxs, ready):
+    """Speak filler clips one after another while a slow step runs.
+
+    Stops starting new clips as soon as `ready()` is true, but never cuts a clip short.
+    """
+    for i in idxs:
+        if ready():
+            return
+        st = Step(i)
+        while now() < st.start + DUR[i] and not ready():
+            time.sleep(0.25)
+        st.done(0.4)
+
+
 def smooth_scroll(page, dy, parts=12):
     for _ in range(parts):
         page.mouse.wheel(0, dy / parts)
@@ -166,10 +180,11 @@ def main():
         s = Step(6)
         page.wait_for_selector("text=Working on it", timeout=20000)
         move(page, 800, 300, 20)
+        s.done(0.3)
+        narrate_while(page, [16, 17], lambda: page.locator("[data-testid=stExpander]").count() >= 2)
         page.wait_for_function("document.querySelectorAll('[data-testid=stExpander]').length >= 2",
                                timeout=150000)
         page.wait_for_timeout(1500)
-        s.done(0.2)
         s = Step(7)
         page.mouse.wheel(0, -2000)
         time.sleep(0.4)
@@ -214,10 +229,11 @@ def main():
         click(page, page.get_by_test_id("stSidebar").get_by_text("Variance report", exact=True))
         page.wait_for_selector("text=Generate report", timeout=30000)
         click(page, page.get_by_role("button", name="Generate report"))
+        s.done(0.3)
+        narrate_while(page, [18], lambda: page.get_by_text("Flagged for review").count() > 0)
         page.wait_for_selector("text=Flagged for review", timeout=180000)
         page.wait_for_timeout(1200)
         move(page, 700, 520, 18)
-        s.done(0.2)
         s = Step(13)
         page.wait_for_selector("text=Drafted by the model", timeout=180000)
         page.mouse.wheel(0, 700)
@@ -232,16 +248,26 @@ def main():
         move(page, gb["x"] + 14, gb["y"] + 60, 25)
         time.sleep(0.4)
         page.mouse.click(gb["x"] + 14, gb["y"] + 60)
+        s.done(0.3)
+        narrate_while(page, [22], lambda: page.get_by_text("Open the full report").count() > 0)
         page.wait_for_selector("text=Open the full report", timeout=60000)
         page.wait_for_timeout(1000)
         smooth_scroll(page, 330)
         time.sleep(1.5)
+        s.done(0.3)
+        s = Step(19)
         click(page, page.get_by_role("button", name="Open the full report for this property"))
-        page.wait_for_timeout(2000)
+        s.done(0.3)
+        narrate_while(page, [20], lambda: page.locator("h2", has_text="Andrade Office Atlanta").count() > 0)
+        page.wait_for_selector("h2:has-text('Andrade Office Atlanta')", timeout=180000)
+        page.wait_for_timeout(1500)
+        s = Step(21)
+        hover(page, page.get_by_text("Drafted by the model").first)
         s.done()
 
         # 7. Close
         click(page, page.get_by_test_id("stSidebar").get_by_text("Home", exact=True))
+        narrate_while(page, [23], lambda: page.get_by_text("Items flagged for review").count() > 0)
         page.wait_for_selector("text=Items flagged for review", timeout=30000)
         page.wait_for_timeout(2500)  # let the snapshot finish loading before the closing line
         s = Step(15)
