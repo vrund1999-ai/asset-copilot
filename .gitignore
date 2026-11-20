@@ -12,3 +12,9 @@ data/generated/
 evals/results/
 .streamlit/secrets.toml
 .DS_Store
+
+# demo video build artefacts
+scripts/demo_video/*.wav
+scripts/demo_video/raw/
+scripts/demo_video/cues.json
+scripts/demo_video/fail.png

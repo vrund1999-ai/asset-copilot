@@ -6,6 +6,8 @@ Evaluated AI agent for commercial real estate portfolio analysis: text-to-SQL + 
 
 ![Demo: a question that finds a lease-vs-database discrepancy, its sources, and a variance report](docs/screenshots/demo.gif)
 
+[Watch the narrated walkthrough](docs/demo/asset-copilot-walkthrough.mp4) (about 3.5 minutes, synthetic voice).
+
 ## What it does
 
 1. **Ask questions** about a portfolio. The agent writes SQL against the property, lease, debt and
