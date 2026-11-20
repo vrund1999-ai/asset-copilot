@@ -101,7 +101,7 @@ if "error" in state:
 rep = state["report"]
 view = current_view()
 cfg = column_config(st)
-st.subheader(f"{state['scope']} · {month_label(state['month'])}")
+st.header(f"{state['scope']} · {month_label(state['month'])}")
 
 cols = st.columns(3)
 for col, ln in zip(cols, rep["totals"], strict=True):
@@ -111,7 +111,7 @@ for col, ln in zip(cols, rep["totals"], strict=True):
 
 # 1. Flagged items first, with drill-down.
 flags = flag_rows(rep)
-st.subheader(f"Flagged for review ({len(flags)})")
+st.header(f"Flagged for review ({len(flags)})")
 st.caption(f"Variance of at least {rep['flag_pct']}% and {usd(rep['flag_min_usd'])}, largest first. "
            "Select a row to see that property.")
 if flags:
@@ -140,7 +140,7 @@ else:
     st.success("No items exceed the review thresholds.")
 
 # 2. Commentary.
-st.subheader("Commentary")
+st.header("Commentary")
 if rep.get("commentary"):
     st.write(rep["commentary"])
     if rep["commentary_source"] == "template":

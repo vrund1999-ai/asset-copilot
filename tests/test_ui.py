@@ -86,9 +86,9 @@ def test_reviewer_view_adds_how_answers_are_checked(monkeypatch):
     at = AppTest.from_file(str(APP / "streamlit_app.py"), default_timeout=20)
     at.session_state["_view"] = "Reviewer"
     at.run()
-    assert any(s.value == "How answers are checked" for s in at.subheader)
+    assert any(s.value == "How answers are checked" for s in at.header)
     at2 = home(monkeypatch)  # default view
-    assert not any(s.value == "How answers are checked" for s in at2.subheader)
+    assert not any(s.value == "How answers are checked" for s in at2.header)
 
 
 def toggle_app():
@@ -319,7 +319,7 @@ def test_variance_page_orders_flags_then_commentary_then_tables(monkeypatch):
     at = variance_page(monkeypatch)
     at.button[0].click().run()
     assert not at.exception
-    heads = [h.value for h in at.subheader]
+    heads = [h.value for h in at.header]
     assert heads[1:] == ["Flagged for review (3)", "Commentary"]
     assert [e.label for e in at.expander] == ["Full tables"] and not at.expander[0].proto.expanded
 
@@ -340,7 +340,7 @@ def test_variance_no_flags_shows_clear_state(monkeypatch):
     at = variance_page(monkeypatch, report={**REPORT, "flags": []})
     at.button[0].click().run()
     assert at.success and "No items exceed" in at.success[0].value
-    assert any(h.value == "Flagged for review (0)" for h in at.subheader)
+    assert any(h.value == "Flagged for review (0)" for h in at.header)
 
 
 def test_variance_open_property_callback_sets_pickers(monkeypatch):
@@ -386,3 +386,28 @@ def test_document_source_shows_passage_text_in_the_expander():
 def test_document_source_without_excerpt_says_so():
     at = render({**ANSWERED, "citations": [{**DOC, "excerpt": None}]}, view="Analyst")
     assert any("passage text was not returned" in c.value for c in at.caption)
+
+
+# ---- Accessibility guard ---------------------------------------------------------------------
+
+def _luminance(hex_color: str) -> float:
+    rgb = [int(hex_color.lstrip("#")[i:i + 2], 16) / 255 for i in (0, 2, 4)]
+    lin = [c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4 for c in rgb]
+    return 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2]
+
+
+def contrast(a: str, b: str) -> float:
+    hi, lo = sorted((_luminance(a), _luminance(b)), reverse=True)
+    return (hi + 0.05) / (lo + 0.05)
+
+
+def test_caption_and_code_colours_meet_wcag_aa():
+    import re
+
+    css = ui_common.CSS
+    caption = re.search(r'stCaptionContainer"\] p \{ color: (#[0-9a-f]{6})', css).group(1)
+    code = re.search(r'stCode"\] code span \{ color: (#[0-9a-f]{6})', css).group(1)
+    for fg in (caption, code):
+        for bg in ("#ffffff", "#f3f6f9", "#f9fbfc"):  # page, sidebar, code block
+            assert contrast(fg, bg) >= 4.5, (fg, bg)
+    assert contrast("#777c83", "#ffffff") < 4.5  # sanity: the old default fails

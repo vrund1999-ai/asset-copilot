@@ -150,6 +150,14 @@ CSS = """
   .ac-card h4 { margin: 0 0 .3rem 0; font-size: 1rem; }
   .ac-muted { opacity: .7; font-size: .9rem; }
   .block-container { padding-top: 2rem; max-width: 1200px; }
+  /* Accessibility: Streamlit's default caption grey is 4.2:1 on white; WCAG AA needs 4.5:1. */
+  [data-testid="stCaptionContainer"] { opacity: 1; }
+  [data-testid="stCaptionContainer"], [data-testid="stCaptionContainer"] p { color: #4b5563; opacity: 1; }
+  /* Syntax colours in code blocks: the default blue is 3.75:1; use one dark colour, bold keywords. */
+  [data-testid="stCode"] code span { color: #1b3a57 !important; }
+  [data-testid="stCode"] code .token.keyword { font-weight: 700; }
+  /* Section headings are h2 (so the outline goes h1 > h2) but keep the smaller size. */
+  [data-testid="stHeading"] h2 { font-size: 1.6rem; padding-top: .5rem; }
 </style>
 """
 
